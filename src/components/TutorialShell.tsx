@@ -10,20 +10,28 @@ interface TutorialShellProps {
   tutorial: Tutorial;
 }
 
+const phaseOrder: TutorialPhase[] = ["build", "execute", "observe"];
+
 export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [prevPhase, setPrevPhase] = useState<TutorialPhase>("build");
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
   const playTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const step = tutorial.steps[stepIndex];
+  const prevPhaseRef = useRef<TutorialPhase>(step.phase);
   const totalSteps = tutorial.steps.length;
 
-  // Detect phase transitions
-  const isPhaseTransition = step.phase !== prevPhase;
+  // Track direction when phase changes
+  const isPhaseTransition = step.phase !== prevPhaseRef.current;
   useEffect(() => {
-    setPrevPhase(step.phase);
-  }, [step.phase]);
+    if (isPhaseTransition) {
+      const oldIdx = phaseOrder.indexOf(prevPhaseRef.current);
+      const newIdx = phaseOrder.indexOf(step.phase);
+      setDirection(newIdx > oldIdx ? 1 : -1);
+    }
+    prevPhaseRef.current = step.phase;
+  }, [step.phase, isPhaseTransition]);
 
   const goNext = useCallback(() => {
     setStepIndex((i) => Math.min(i + 1, totalSteps - 1));
@@ -75,83 +83,67 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev]);
 
-  // Determine panel layout based on phase
-  const renderPanels = () => {
-    switch (step.phase) {
+  const getPanels = (phase: TutorialPhase) => {
+    switch (phase) {
       case "build":
-        // Left: code | Right: flowchart building
-        return (
-          <PhaseLayout
-            key="phase-build"
-            phase="build"
-            isTransition={isPhaseTransition}
-            left={
-              <CodePanel
-                code={step.code}
-                highlightLines={step.highlightLines}
-              />
-            }
-            right={
-              <FlowchartPanel nodes={step.nodes} edges={step.edges} />
-            }
-          />
-        );
-
+        return {
+          left: (
+            <CodePanel
+              code={step.code}
+              highlightLines={step.highlightLines}
+            />
+          ),
+          right: <FlowchartPanel nodes={step.nodes} edges={step.edges} />,
+        };
       case "execute":
-        // Left: flowchart | Right: memory + narrative
-        return (
-          <PhaseLayout
-            key="phase-execute"
-            phase="execute"
-            isTransition={isPhaseTransition}
-            left={
-              <FlowchartPanel nodes={step.nodes} edges={step.edges} />
-            }
-            right={
-              <MemoryPanel
-                memory={step.memory || {}}
-                narrative={step.narrative}
-              />
-            }
-          />
-        );
-
+        return {
+          left: <FlowchartPanel nodes={step.nodes} edges={step.edges} />,
+          right: (
+            <MemoryPanel
+              memory={step.memory || {}}
+              narrative={step.narrative}
+            />
+          ),
+        };
       case "observe":
-        // Left: flowchart + memory/narrative | Right: code
-        return (
-          <PhaseLayout
-            key="phase-observe"
-            phase="observe"
-            isTransition={isPhaseTransition}
-            left={
+        return {
+          left: (
+            <div
+              style={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div style={{ flex: "0 0 40%" }}>
+                <FlowchartPanel nodes={step.nodes} edges={step.edges} />
+              </div>
               <div
                 style={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
+                  flex: 1,
+                  borderTop: "1px solid var(--border)",
+                  overflow: "auto",
                 }}
               >
-                <div style={{ flex: "0 0 40%" }}>
-                  <FlowchartPanel nodes={step.nodes} edges={step.edges} />
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    borderTop: "1px solid var(--border)",
-                    overflow: "auto",
-                  }}
-                >
-                  <MemoryPanel
-                    memory={step.memory || {}}
-                    narrative={step.narrative}
-                  />
-                </div>
+                <MemoryPanel
+                  memory={step.memory || {}}
+                  narrative={step.narrative}
+                />
               </div>
-            }
-            right={<CodePanel code={step.code} />}
-          />
-        );
+            </div>
+          ),
+          right: <CodePanel code={step.code} />,
+        };
     }
+  };
+
+  const { left, right } = getPanels(step.phase);
+
+  // Slide variants: enter from right, exit to left (or reverse)
+  const slideVariants = {
+    enter: { x: `${direction * 100}%` },
+    center: { x: "0%" },
+    exit: { x: `${direction * -100}%` },
   };
 
   return (
@@ -195,12 +187,51 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
       <div
         style={{
           flex: 1,
-          display: "flex",
           overflow: "hidden",
           position: "relative",
         }}
       >
-        <AnimatePresence mode="wait">{renderPanels()}</AnimatePresence>
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={step.phase}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              duration: 0.5,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            style={{
+              display: "flex",
+              position: "absolute",
+              inset: 0,
+            }}
+          >
+            {/* Left panel */}
+            <div
+              style={{
+                flex: 1,
+                height: "100%",
+                overflow: "hidden",
+                borderRight: "1px solid var(--border)",
+              }}
+            >
+              {left}
+            </div>
+
+            {/* Right panel */}
+            <div
+              style={{
+                flex: 1,
+                height: "100%",
+                overflow: "hidden",
+              }}
+            >
+              {right}
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Bottom controls */}
@@ -216,82 +247,5 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         onTogglePlay={togglePlay}
       />
     </div>
-  );
-}
-
-/**
- * On phase transition: both panels slide left together (right→left handoff).
- * Within a phase: panels just fade in place.
- */
-function PhaseLayout({
-  phase,
-  isTransition,
-  left,
-  right,
-}: {
-  phase: TutorialPhase;
-  isTransition: boolean;
-  left: React.ReactNode;
-  right: React.ReactNode;
-}) {
-  // Slide distance for phase transition
-  const slideX = isTransition ? "50%" : "0%";
-
-  return (
-    <motion.div
-      key={phase}
-      initial={
-        isTransition
-          ? { x: slideX, opacity: 0 }
-          : { opacity: 0 }
-      }
-      animate={{ x: "0%", opacity: 1 }}
-      exit={
-        isTransition
-          ? { x: `-${slideX}`, opacity: 0 }
-          : { opacity: 0 }
-      }
-      transition={{
-        duration: isTransition ? 0.6 : 0.3,
-        ease: [0.4, 0, 0.2, 1],
-      }}
-      style={{
-        display: "flex",
-        width: "100%",
-        height: "100%",
-        position: "absolute",
-        inset: 0,
-      }}
-    >
-      {/* Left panel */}
-      <div
-        style={{
-          flex: 1,
-          height: "100%",
-          overflow: "hidden",
-          borderRight: "1px solid var(--border)",
-        }}
-      >
-        {left}
-      </div>
-
-      {/* Right panel */}
-      <motion.div
-        initial={isTransition ? { opacity: 0, x: 40 } : { opacity: 0 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{
-          duration: 0.4,
-          delay: isTransition ? 0.3 : 0,
-          ease: "easeOut",
-        }}
-        style={{
-          flex: 1,
-          height: "100%",
-          overflow: "hidden",
-        }}
-      >
-        {right}
-      </motion.div>
-    </motion.div>
   );
 }
