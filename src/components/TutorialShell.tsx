@@ -1,10 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Tutorial, TutorialPhase } from "../tutorials/types";
 import { CodePanel } from "./CodePanel";
 import { FlowchartPanel } from "./FlowchartPanel";
-import { MemoryPanel } from "./MemoryPanel";
+import { MemoryTimeline } from "./MemoryTimeline";
+import { ObservePanel } from "./ObservePanel";
+import { EndScreen } from "./EndScreen";
 import { StepControls } from "./StepControls";
+import { PhaseHeader } from "./PhaseHeader";
 
 interface TutorialShellProps {
   tutorial: Tutorial;
@@ -22,7 +25,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const playTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Transition state: when phase changes, we briefly show 3 panels
+  // Transition state
   const [transitioning, setTransitioning] = useState(false);
   const [oldLeft, setOldLeft] = useState<React.ReactNode>(null);
   const prevPhaseRef = useRef<TutorialPhase>("build");
@@ -31,64 +34,59 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
   const step = tutorial.steps[stepIndex];
   const totalSteps = tutorial.steps.length;
 
+  // Compute phase step info
+  const phaseInfo = useMemo(() => {
+    const firstIdx = tutorial.steps.findIndex((s) => s.phase === step.phase);
+    const count = tutorial.steps.filter((s) => s.phase === step.phase).length;
+    return { firstStepOfPhase: firstIdx, phaseStepCount: count, phaseStepIndex: stepIndex - firstIdx };
+  }, [tutorial.steps, step.phase, stepIndex]);
+
+  // Phase-aware background tint
+  const phaseBg: Record<TutorialPhase, string> = {
+    build: "var(--phase-build-dim)",
+    execute: "var(--phase-execute-dim)",
+    observe: "var(--phase-observe-dim)",
+  };
+
   const getPanels = useCallback(
-    (s: typeof step): PanelContent => {
+    (s: (typeof tutorial.steps)[number]): PanelContent => {
       switch (s.phase) {
         case "build":
           return {
-            left: (
-              <CodePanel code={s.code} highlightLines={s.highlightLines} />
-            ),
-            right: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
+            left: <CodePanel code={s.code} highlightLines={s.highlightLines} newCodeRange={s.newCodeRange} />,
+            right: <FlowchartPanel nodes={s.nodes} edges={s.edges} linkedNodeId={s.linkedNodeId} />,
           };
         case "execute":
           return {
             left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
-            right: (
-              <MemoryPanel
-                memory={s.memory || {}}
-                narrative={s.narrative}
-              />
-            ),
+            right: <MemoryTimeline memory={s.memory || {}} narrative={s.narrative} />,
           };
-        case "observe":
+        case "observe": {
+          // Last step = end screen
+          const isLastStep = s === tutorial.steps[tutorial.steps.length - 1];
+          if (isLastStep) {
+            return {
+              left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
+              right: <EndScreen />,
+            };
+          }
           return {
-            left: (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div style={{ flex: "0 0 40%" }}>
-                  <FlowchartPanel nodes={s.nodes} edges={s.edges} />
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    borderTop: "1px solid var(--border)",
-                    overflow: "auto",
-                  }}
-                >
-                  <MemoryPanel
-                    memory={s.memory || {}}
-                    narrative={s.narrative}
-                  />
-                </div>
-              </div>
+            left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
+            right: s.snapshots ? (
+              <ObservePanel snapshots={s.snapshots} />
+            ) : (
+              <MemoryTimeline memory={s.memory || {}} narrative={s.narrative} />
             ),
-            right: <CodePanel code={s.code} />,
           };
+        }
       }
     },
-    []
+    [tutorial.steps]
   );
 
-  // Detect phase change and trigger 3-panel transition
+  // Phase transition animation
   useEffect(() => {
     if (step.phase !== prevPhaseRef.current) {
-      // Get the previous step's panels to capture the old left content
       const prevStepIndex = Math.max(0, stepIndex - 1);
       const prevStep = tutorial.steps[prevStepIndex];
       const prevPanels = getPanels(prevStep);
@@ -103,8 +101,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
       prevPhaseRef.current = step.phase;
     }
     return () => {
-      if (transitionTimerRef.current)
-        clearTimeout(transitionTimerRef.current);
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     };
   }, [step.phase, stepIndex, tutorial.steps, getPanels]);
 
@@ -115,6 +112,10 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
   const goPrev = useCallback(() => {
     setStepIndex((i) => Math.max(i - 1, 0));
     setIsPlaying(false);
+  }, []);
+
+  const goToStep = useCallback((idx: number) => {
+    setStepIndex(idx);
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -169,33 +170,8 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         background: "var(--bg-primary)",
       }}
     >
-      {/* Header */}
-      <header
-        style={{
-          padding: "12px 24px",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          background: "var(--bg-secondary)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            background:
-              "linear-gradient(135deg, var(--accent), var(--success))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          FootPrint
-        </div>
-        <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
-          {tutorial.name}
-        </span>
-      </header>
+      {/* Phase stepper header */}
+      <PhaseHeader currentPhase={step.phase} tutorialName={tutorial.name} />
 
       {/* Main content area */}
       <div
@@ -203,6 +179,8 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
           flex: 1,
           overflow: "hidden",
           position: "relative",
+          background: phaseBg[step.phase],
+          transition: "background 0.5s ease",
         }}
       >
         {transitioning ? (
@@ -220,22 +198,19 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         title={step.title}
         description={step.description}
         isPlaying={isPlaying}
+        phaseStepIndex={phaseInfo.phaseStepIndex}
+        phaseStepCount={phaseInfo.phaseStepCount}
+        firstStepOfPhase={phaseInfo.firstStepOfPhase}
         onPrev={goPrev}
         onNext={goNext}
         onTogglePlay={togglePlay}
+        onGoToStep={goToStep}
       />
     </div>
   );
 }
 
-/** Normal two-panel layout (no transition in progress) */
-function StaticLayout({
-  left,
-  right,
-}: {
-  left: React.ReactNode;
-  right: React.ReactNode;
-}) {
+function StaticLayout({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
   return (
     <div style={{ display: "flex", height: "100%", width: "100%" }}>
       <div
@@ -253,15 +228,6 @@ function StaticLayout({
   );
 }
 
-/**
- * 3-panel transition:
- * - Old left panel: slides out to the left (from 0% to -50%)
- * - New left panel (was old right): slides from right position to left (50% → 0%)
- * - New right panel: slides in from offscreen (100% → 50%)
- *
- * This creates the visual effect of the right panel content
- * physically moving to become the left panel.
- */
 function TransitionLayout({
   oldLeft,
   newLeft,
@@ -275,60 +241,28 @@ function TransitionLayout({
   const duration = TRANSITION_MS / 1000;
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
-      {/* Old left panel — slides off to the left */}
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
       <motion.div
         initial={{ left: "0%", opacity: 1 }}
         animate={{ left: "-50%", opacity: 0 }}
         transition={{ duration, ease }}
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          width: "50%",
-          overflow: "hidden",
-          borderRight: "1px solid var(--border)",
-        }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden", borderRight: "1px solid var(--border)" }}
       >
         {oldLeft}
       </motion.div>
-
-      {/* New left panel (the "shared" content) — slides from right half to left half */}
       <motion.div
         initial={{ left: "50%" }}
         animate={{ left: "0%" }}
         transition={{ duration, ease }}
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          width: "50%",
-          overflow: "hidden",
-          borderRight: "1px solid var(--border)",
-        }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden", borderRight: "1px solid var(--border)" }}
       >
         {newLeft}
       </motion.div>
-
-      {/* New right panel — slides in from offscreen right */}
       <motion.div
         initial={{ left: "100%" }}
         animate={{ left: "50%" }}
         transition={{ duration, ease }}
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          width: "50%",
-          overflow: "hidden",
-        }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden" }}
       >
         {newRight}
       </motion.div>

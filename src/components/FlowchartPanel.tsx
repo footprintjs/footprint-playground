@@ -16,21 +16,27 @@ const nodeTypes = { stage: StageNodeComponent };
 interface FlowchartPanelProps {
   nodes: Node[];
   edges: Edge[];
+  /** Node to highlight with a pulse ring (build phase: code-to-node link) */
+  linkedNodeId?: string;
 }
 
-function FlowchartInner({ nodes, edges }: FlowchartPanelProps) {
+function FlowchartInner({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
   const { fitView } = useReactFlow();
 
-  // Re-fit whenever nodes change
+  // Inject linked highlight into node data
+  const enhancedNodes = nodes.map((n) => ({
+    ...n,
+    data: { ...n.data, linked: n.id === linkedNodeId },
+  }));
+
   useEffect(() => {
-    // Small delay so React Flow measures the new nodes first
     const t = setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
     return () => clearTimeout(t);
   }, [nodes, fitView]);
 
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={enhancedNodes}
       edges={edges}
       nodeTypes={nodeTypes}
       fitView
@@ -59,11 +65,11 @@ function FlowchartInner({ nodes, edges }: FlowchartPanelProps) {
   );
 }
 
-export function FlowchartPanel({ nodes, edges }: FlowchartPanelProps) {
+export function FlowchartPanel({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <ReactFlowProvider>
-        <FlowchartInner nodes={nodes} edges={edges} />
+        <FlowchartInner nodes={nodes} edges={edges} linkedNodeId={linkedNodeId} />
       </ReactFlowProvider>
     </div>
   );

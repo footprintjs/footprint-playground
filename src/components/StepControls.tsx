@@ -8,21 +8,20 @@ interface StepControlsProps {
   title: string;
   description: string;
   isPlaying: boolean;
+  /** Index within current phase (for observe slider) */
+  phaseStepIndex: number;
+  phaseStepCount: number;
   onPrev: () => void;
   onNext: () => void;
   onTogglePlay: () => void;
+  onGoToStep?: (stepIndex: number) => void;
+  firstStepOfPhase: number;
 }
 
-const phaseLabels: Record<TutorialPhase, string> = {
-  build: "Build Time",
-  execute: "Execution",
-  observe: "Observability",
-};
-
 const phaseColors: Record<TutorialPhase, string> = {
-  build: "var(--accent)",
-  execute: "var(--warning)",
-  observe: "var(--success)",
+  build: "var(--phase-build)",
+  execute: "var(--phase-execute)",
+  observe: "var(--phase-observe)",
 };
 
 export function StepControls({
@@ -32,68 +31,86 @@ export function StepControls({
   title,
   description,
   isPlaying,
+  phaseStepIndex,
+  phaseStepCount,
   onPrev,
   onNext,
   onTogglePlay,
+  onGoToStep,
+  firstStepOfPhase,
 }: StepControlsProps) {
+  const color = phaseColors[phase];
+  const isFirst = currentStep === 0;
+  const isLast = currentStep === totalSteps - 1;
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 16,
-        padding: "20px 24px",
+        gap: 12,
+        padding: "16px 24px",
         background: "var(--bg-secondary)",
-        borderTop: "1px solid var(--border)",
+        borderTop: `1px solid var(--border)`,
       }}
     >
-      {/* Phase indicator + step info */}
+      {/* Step info */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span
-          style={{
-            background: phaseColors[phase],
-            color: "white",
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "4px 10px",
-            borderRadius: 4,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {phaseLabels[phase]}
-        </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--text-primary)",
+            }}
+          >
             {title}
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              marginTop: 2,
+            }}
+          >
             {description}
           </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div
-        style={{
-          height: 4,
-          background: "var(--bg-tertiary)",
-          borderRadius: 2,
-          overflow: "hidden",
-        }}
-      >
-        <motion.div
-          animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
-          transition={{ duration: 0.3 }}
-          style={{
-            height: "100%",
-            background: phaseColors[phase],
-            borderRadius: 2,
-          }}
+      {/* Phase-specific progress */}
+      {phase === "observe" && phaseStepCount > 1 ? (
+        <ObserveSlider
+          phaseStepIndex={phaseStepIndex}
+          phaseStepCount={phaseStepCount}
+          color={color}
+          onGoToStep={onGoToStep}
+          firstStepOfPhase={firstStepOfPhase}
         />
-      </div>
+      ) : (
+        <div
+          style={{
+            height: 4,
+            background: "var(--bg-tertiary)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <motion.div
+            animate={{
+              width: `${((currentStep + 1) / totalSteps) * 100}%`,
+            }}
+            transition={{ duration: 0.3 }}
+            style={{
+              height: "100%",
+              background: color,
+              borderRadius: 2,
+            }}
+          />
+        </div>
+      )}
 
-      {/* Controls */}
+      {/* Controls row */}
       <div
         style={{
           display: "flex",
@@ -105,70 +122,158 @@ export function StepControls({
           {currentStep + 1} / {totalSteps}
         </span>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={onPrev}
-            disabled={currentStep === 0}
-            style={{
-              background: "var(--bg-tertiary)",
-              border: "1px solid var(--border)",
-              color: currentStep === 0 ? "var(--text-muted)" : "var(--text-primary)",
-              borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: currentStep === 0 ? "not-allowed" : "pointer",
-              opacity: currentStep === 0 ? 0.5 : 1,
-            }}
-          >
-            Prev
-          </button>
-
-          {phase === "execute" && (
-            <button
-              onClick={onTogglePlay}
-              style={{
-                background: isPlaying ? "var(--error)" : phaseColors[phase],
-                border: "none",
-                color: "white",
-                borderRadius: 8,
-                padding: "8px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                minWidth: 80,
-              }}
-            >
-              {isPlaying ? "Pause" : "Play"}
-            </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Build phase: just Prev / Next */}
+          {phase === "build" && (
+            <>
+              <NavButton onClick={onPrev} disabled={isFirst} label="Prev" />
+              <NavButton
+                onClick={onNext}
+                disabled={isLast}
+                label="Next"
+                primary
+                color={color}
+              />
+            </>
           )}
 
-          <button
-            onClick={onNext}
-            disabled={currentStep === totalSteps - 1}
-            style={{
-              background:
-                currentStep === totalSteps - 1
-                  ? "var(--bg-tertiary)"
-                  : phaseColors[phase],
-              border: "1px solid transparent",
-              color:
-                currentStep === totalSteps - 1
-                  ? "var(--text-muted)"
-                  : "white",
-              borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor:
-                currentStep === totalSteps - 1 ? "not-allowed" : "pointer",
-              opacity: currentStep === totalSteps - 1 ? 0.5 : 1,
-            }}
-          >
-            Next
-          </button>
+          {/* Execute phase: Prev, centered Run button, Next */}
+          {phase === "execute" && (
+            <>
+              <NavButton onClick={onPrev} disabled={isFirst} label="Prev" />
+              <button
+                onClick={onTogglePlay}
+                style={{
+                  background: isPlaying
+                    ? "var(--error)"
+                    : color,
+                  border: "none",
+                  color: isPlaying ? "white" : "#000",
+                  borderRadius: 24,
+                  padding: "8px 28px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {isPlaying ? (
+                  <>
+                    <span style={{ fontSize: 10 }}>{"\u23F8"}</span> Pause
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 10 }}>{"\u25B6"}</span> Run
+                  </>
+                )}
+              </button>
+              <NavButton
+                onClick={onNext}
+                disabled={isLast}
+                label="Next"
+              />
+            </>
+          )}
+
+          {/* Observe phase: Prev / Replay / Next */}
+          {phase === "observe" && (
+            <>
+              <NavButton onClick={onPrev} disabled={isFirst} label="Prev" />
+              <NavButton
+                onClick={onNext}
+                disabled={isLast}
+                label="Next"
+                primary
+                color={color}
+              />
+            </>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function NavButton({
+  onClick,
+  disabled,
+  label,
+  primary,
+  color,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+  primary?: boolean;
+  color?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background:
+          primary && !disabled ? (color || "var(--accent)") : "var(--bg-tertiary)",
+        border: "1px solid var(--border)",
+        color: primary && !disabled
+          ? "#000"
+          : disabled
+            ? "var(--text-muted)"
+            : "var(--text-primary)",
+        borderRadius: 8,
+        padding: "8px 16px",
+        fontSize: 13,
+        fontWeight: primary ? 600 : 500,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        transition: "all 0.2s ease",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ObserveSlider({
+  phaseStepIndex,
+  phaseStepCount,
+  color,
+  onGoToStep,
+  firstStepOfPhase,
+}: {
+  phaseStepIndex: number;
+  phaseStepCount: number;
+  color: string;
+  onGoToStep?: (stepIndex: number) => void;
+  firstStepOfPhase: number;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
+        Replay
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={phaseStepCount - 1}
+        value={phaseStepIndex}
+        onChange={(e) => {
+          const idx = parseInt(e.target.value);
+          onGoToStep?.(firstStepOfPhase + idx);
+        }}
+        style={{
+          flex: 1,
+          height: 4,
+          accentColor: color,
+          cursor: "pointer",
+        }}
+      />
+      <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
+        {phaseStepIndex + 1}/{phaseStepCount}
+      </span>
     </div>
   );
 }

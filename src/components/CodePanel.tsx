@@ -1,12 +1,57 @@
-import Editor from "@monaco-editor/react";
+import { useRef, useEffect } from "react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { motion } from "framer-motion";
 
 interface CodePanelProps {
   code: string;
   highlightLines?: [number, number];
+  newCodeRange?: [number, number];
 }
 
-export function CodePanel({ code, highlightLines }: CodePanelProps) {
+type MonacoEditor = Parameters<OnMount>[0];
+type Monaco = Parameters<OnMount>[1];
+
+export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps) {
+  const editorRef = useRef<MonacoEditor>(undefined);
+  const monacoRef = useRef<Monaco>(undefined);
+  const decorationIds = useRef<string[]>([]);
+
+  // Update decorations whenever props change
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const decorations: Parameters<typeof editor.deltaDecorations>[1] = [];
+    const revealLine = newCodeRange?.[0] ?? highlightLines?.[0];
+
+    if (newCodeRange) {
+      decorations.push({
+        range: new monaco.Range(newCodeRange[0], 1, newCodeRange[1], 1),
+        options: {
+          isWholeLine: true,
+          className: "new-code-line",
+          linesDecorationsClassName: "new-code-gutter",
+        },
+      });
+    } else if (highlightLines) {
+      decorations.push({
+        range: new monaco.Range(highlightLines[0], 1, highlightLines[1], 1),
+        options: {
+          isWholeLine: true,
+          className: "highlighted-line",
+          linesDecorationsClassName: "highlighted-line-gutter",
+        },
+      });
+    }
+
+    decorationIds.current = editor.deltaDecorations(decorationIds.current, decorations);
+
+    if (revealLine) {
+      editor.revealLineInCenter(revealLine);
+    }
+  }, [code, highlightLines, newCodeRange]);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -39,6 +84,9 @@ export function CodePanel({ code, highlightLines }: CodePanelProps) {
           },
         }}
         onMount={(editor, monaco) => {
+          editorRef.current = editor;
+          monacoRef.current = monaco;
+
           // Custom dark theme matching our app
           monaco.editor.defineTheme("footprint-dark", {
             base: "vs-dark",
@@ -60,27 +108,33 @@ export function CodePanel({ code, highlightLines }: CodePanelProps) {
           });
           monaco.editor.setTheme("footprint-dark");
 
-          // Highlight lines if specified
-          if (highlightLines) {
-            editor.revealLineInCenter(highlightLines[0]);
-            editor.deltaDecorations(
-              [],
-              [
-                {
-                  range: new monaco.Range(
-                    highlightLines[0],
-                    1,
-                    highlightLines[1],
-                    1
-                  ),
-                  options: {
-                    isWholeLine: true,
-                    className: "highlighted-line",
-                    linesDecorationsClassName: "highlighted-line-gutter",
-                  },
-                },
-              ]
-            );
+          // Apply initial decorations
+          const decorations: Parameters<typeof editor.deltaDecorations>[1] = [];
+          const revealLine = newCodeRange?.[0] ?? highlightLines?.[0];
+
+          if (newCodeRange) {
+            decorations.push({
+              range: new monaco.Range(newCodeRange[0], 1, newCodeRange[1], 1),
+              options: {
+                isWholeLine: true,
+                className: "new-code-line",
+                linesDecorationsClassName: "new-code-gutter",
+              },
+            });
+          } else if (highlightLines) {
+            decorations.push({
+              range: new monaco.Range(highlightLines[0], 1, highlightLines[1], 1),
+              options: {
+                isWholeLine: true,
+                className: "highlighted-line",
+                linesDecorationsClassName: "highlighted-line-gutter",
+              },
+            });
+          }
+
+          decorationIds.current = editor.deltaDecorations([], decorations);
+          if (revealLine) {
+            editor.revealLineInCenter(revealLine);
           }
         }}
       />
