@@ -17,9 +17,10 @@ const phaseColors: Record<TutorialPhase, string> = {
 interface PhaseHeaderProps {
   currentPhase: TutorialPhase;
   tutorialName: string;
+  onPhaseClick?: (phase: TutorialPhase) => void;
 }
 
-export function PhaseHeader({ currentPhase, tutorialName }: PhaseHeaderProps) {
+export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseHeaderProps) {
   const currentIdx = phases.findIndex((p) => p.key === currentPhase);
   const { theme, toggle } = useTheme();
 
@@ -74,6 +75,7 @@ export function PhaseHeader({ currentPhase, tutorialName }: PhaseHeaderProps) {
             <div key={phase.key} style={{ display: "flex", alignItems: "center" }}>
               {/* Step circle + label */}
               <div
+                onClick={() => (isActive || isDone) && onPhaseClick?.(phase.key)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -84,6 +86,7 @@ export function PhaseHeader({ currentPhase, tutorialName }: PhaseHeaderProps) {
                     ? `color-mix(in srgb, ${phaseColors[phase.key]} 15%, transparent)`
                     : "transparent",
                   transition: "all 0.3s ease",
+                  cursor: isActive || isDone ? "pointer" : "default",
                 }}
               >
                 <div

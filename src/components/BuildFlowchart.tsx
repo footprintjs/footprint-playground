@@ -12,17 +12,16 @@ import { StageNodeComponent } from "./StageNode";
 
 const nodeTypes = { stage: StageNodeComponent };
 
-interface FlowchartPanelProps {
+interface BuildFlowchartProps {
   nodes: Node[];
   edges: Edge[];
-  /** Node to highlight with a pulse ring (build phase: code-to-node link) */
+  /** Node to highlight with a pulse ring (code-to-node link) */
   linkedNodeId?: string;
 }
 
-function FlowchartInner({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
+function BuildFlowchartInner({ nodes, edges, linkedNodeId }: BuildFlowchartProps) {
   const { fitView } = useReactFlow();
 
-  // Inject linked highlight into node data
   const enhancedNodes = nodes.map((n) => ({
     ...n,
     data: { ...n.data, linked: n.id === linkedNodeId },
@@ -57,11 +56,11 @@ function FlowchartInner({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
   );
 }
 
-export function FlowchartPanel({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
+export function BuildFlowchart(props: BuildFlowchartProps) {
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <ReactFlowProvider>
-        <FlowchartInner nodes={nodes} edges={edges} linkedNodeId={linkedNodeId} />
+        <BuildFlowchartInner {...props} />
       </ReactFlowProvider>
     </div>
   );

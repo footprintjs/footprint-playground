@@ -41,61 +41,54 @@ function edge(source: string, target: string, animated = false): Edge {
 // PHASE 1 — BUILD TIME (steps 0–5)
 // ──────────────────────────────────────────
 
-const buildCode = `import { FlowChartBuilder } from "footprintjs";
+const buildCode = `import { flowChart } from "footprintjs";
 
-const builder = new FlowChartBuilder("restaurant");`;
-
-const buildStep1Code = `${buildCode}
-
-// Step 1: Take the order
-builder.addStage("takeOrder", (scope) => {
+const chart = flowChart("takeOrder", (scope) => {
   scope.set("order", { burger: 1, soda: 1 });
-  return "Order received";
-});`;
+}, undefined, "Take Order", undefined,
+"Receive the customer's food order")`;
 
-const buildStep2Code = `${buildStep1Code}
+const buildStep1Code = `${buildCode}`;
 
-// Step 2: Validate payment
-builder.addStage("validatePayment", (scope) => {
-  const order = scope.get("order");
+const buildStep2Code = `${buildCode}
+.addFunction("validatePayment", (scope) => {
   scope.set("paid", true);
-  return "Payment validated";
-});`;
+}, undefined, "Validate Payment",
+"Confirm payment for the order")`;
 
 const buildStep3Code = `${buildStep2Code}
-
-// Step 3: Fork — cook food & make drink in parallel
-builder.fork("prepare", ["cookFood", "makeDrink"]);
-
-builder.addStage("cookFood", (scope) => {
-  return "Burger cooked";
-});
-
-builder.addStage("makeDrink", (scope) => {
-  return "Soda poured";
-});`;
+.addListOfFunction([
+  { id: "cookFood", name: "cookFood",
+    displayName: "Cook Food",
+    fn: (scope) => {
+      scope.set("cookFood", "Burger cooked");
+  }},
+  { id: "makeDrink", name: "makeDrink",
+    displayName: "Make Drink",
+    fn: (scope) => {
+      scope.set("makeDrink", "Soda poured");
+  }},
+])`;
 
 const buildStep4Code = `${buildStep3Code}
-
-// Step 4: Assemble the order
-builder.addStage("assemble", (scope) => {
-  return "Order assembled in bag";
-});`;
+.addFunction("assemble", (scope) => {
+  scope.set("assembled", true);
+}, undefined, "Assemble",
+"Pack all items into a bag")`;
 
 const buildStep5Code = `${buildStep4Code}
-
-// Step 5: Deliver
-builder.addStage("deliver", (scope) => {
-  return "Order delivered!";
-});`;
+.addFunction("deliver", (scope) => {
+  scope.set("delivered", true);
+}, undefined, "Deliver",
+"Hand the order to the customer")
+.build();`;
 
 // ──────────────────────────────────────────
 // PHASE 2 — EXECUTE (steps 6–12)
 // ──────────────────────────────────────────
 
 const execCode = `// Flowchart is built. Now execute it!
-const executor = builder.build();
-const result = await executor.run();`;
+const result = await execute(chart);`;
 
 const allNodes = (
   activeId?: string,
@@ -123,12 +116,14 @@ const allEdges = (animatedId?: string): Edge[] => [
 // PHASE 3 — OBSERVE: time-travel snapshots
 // ──────────────────────────────────────────
 
+// Timeline: takeOrder(0-0.8) → validatePayment(0.8-1.9) → fork: cookFood(1.9-4.0) || makeDrink(1.9-3.7) → assemble(4.0-4.9) → deliver(4.9-5.2)
 const timelineSnapshots: StageSnapshot[] = [
   {
     stageName: "takeOrder",
     stageLabel: "Take Order",
     memory: { order: { burger: 1, soda: 1 } },
     narrative: "Received customer order: 1 burger, 1 soda.",
+    startMs: 0,
     durationMs: 0.8,
   },
   {
@@ -136,6 +131,7 @@ const timelineSnapshots: StageSnapshot[] = [
     stageLabel: "Validate Payment",
     memory: { order: { burger: 1, soda: 1 }, paid: true },
     narrative: "Payment confirmed for order totalling $12.50.",
+    startMs: 0.8,
     durationMs: 1.1,
   },
   {
@@ -143,6 +139,7 @@ const timelineSnapshots: StageSnapshot[] = [
     stageLabel: "Cook Food",
     memory: { order: { burger: 1, soda: 1 }, paid: true, cookFood: "Burger cooked" },
     narrative: "Burger cooked on grill. Parallel with makeDrink.",
+    startMs: 1.9,
     durationMs: 2.1,
   },
   {
@@ -150,6 +147,7 @@ const timelineSnapshots: StageSnapshot[] = [
     stageLabel: "Make Drink",
     memory: { order: { burger: 1, soda: 1 }, paid: true, cookFood: "Burger cooked", makeDrink: "Soda poured" },
     narrative: "Soda poured from fountain. Parallel with cookFood.",
+    startMs: 1.9,
     durationMs: 1.8,
   },
   {
@@ -157,6 +155,7 @@ const timelineSnapshots: StageSnapshot[] = [
     stageLabel: "Assemble",
     memory: { order: { burger: 1, soda: 1 }, paid: true, cookFood: "Burger cooked", makeDrink: "Soda poured", assembled: true },
     narrative: "All items packed into bag. Ready for delivery.",
+    startMs: 4.0,
     durationMs: 0.9,
   },
   {
@@ -164,6 +163,7 @@ const timelineSnapshots: StageSnapshot[] = [
     stageLabel: "Deliver",
     memory: { order: { burger: 1, soda: 1 }, paid: true, cookFood: "Burger cooked", makeDrink: "Soda poured", assembled: true, delivered: true },
     narrative: "Order handed to customer. Pipeline complete!",
+    startMs: 4.9,
     durationMs: 0.3,
   },
 ];
@@ -180,21 +180,11 @@ export const restaurantOrder: Tutorial = {
     // ── BUILD PHASE ──
     {
       phase: "build",
-      title: "Create the builder",
-      description: "Import FootPrint and create a new FlowChartBuilder.",
-      code: buildCode,
-      highlightLines: [1, 3],
-      newCodeRange: [1, 3],
-      nodes: [],
-      edges: [],
-    },
-    {
-      phase: "build",
       title: "Take the order",
-      description: "Add the first stage — it receives the customer's order and stores it in scope.",
+      description: "Start the chain with flowChart() — the first stage receives the customer's order.",
       code: buildStep1Code,
-      highlightLines: [5, 9],
-      newCodeRange: [5, 9],
+      highlightLines: [1, 6],
+      newCodeRange: [1, 6],
       linkedNodeId: "takeOrder",
       nodes: [node("takeOrder", "Take Order", pos.takeOrder, true)],
       edges: [],
@@ -202,10 +192,10 @@ export const restaurantOrder: Tutorial = {
     {
       phase: "build",
       title: "Validate payment",
-      description: "Add a payment validation stage that reads the order from scope.",
+      description: "Chain .addFunction() — reads the order from scope and confirms payment.",
       code: buildStep2Code,
-      highlightLines: [11, 16],
-      newCodeRange: [11, 16],
+      highlightLines: [7, 10],
+      newCodeRange: [7, 10],
       linkedNodeId: "validatePayment",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -216,10 +206,10 @@ export const restaurantOrder: Tutorial = {
     {
       phase: "build",
       title: "Fork: parallel preparation",
-      description: "Fork into two parallel branches — cook the food and make the drink simultaneously.",
+      description: "Chain .addListOfFunction() — cook food and make drink run in parallel.",
       code: buildStep3Code,
-      highlightLines: [18, 27],
-      newCodeRange: [18, 27],
+      highlightLines: [11, 22],
+      newCodeRange: [11, 22],
       linkedNodeId: "cookFood",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -238,8 +228,8 @@ export const restaurantOrder: Tutorial = {
       title: "Assemble the order",
       description: "After both parallel branches complete, assemble everything into a bag.",
       code: buildStep4Code,
-      highlightLines: [29, 32],
-      newCodeRange: [29, 32],
+      highlightLines: [23, 26],
+      newCodeRange: [23, 26],
       linkedNodeId: "assemble",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -258,11 +248,11 @@ export const restaurantOrder: Tutorial = {
     },
     {
       phase: "build",
-      title: "Deliver",
-      description: "Final stage — deliver the assembled order to the customer.",
+      title: "Deliver and build",
+      description: "Final stage + .build() compiles the chain into an executable flowchart.",
       code: buildStep5Code,
-      highlightLines: [34, 37],
-      newCodeRange: [34, 37],
+      highlightLines: [27, 31],
+      newCodeRange: [27, 31],
       linkedNodeId: "deliver",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -369,34 +359,6 @@ console.log(atStep2.memory);
       snapshots: timelineSnapshots,
       memory: timelineSnapshots[0].memory,
       narrative: timelineSnapshots[0].narrative,
-    },
-    {
-      phase: "observe",
-      title: "Causal Narrative",
-      description: "The auto-generated narrative explains what happened and why — ready to feed to an LLM.",
-      code: `// The narrative is auto-generated from the trace
-const narrative = result.getNarrative();
-
-// Feed it directly to an LLM:
-const answer = await llm.ask(
-  "Why was the order delivered?",
-  { context: narrative }
-);
-// "The order was delivered because all preparation
-//  stages completed successfully: the burger was
-//  cooked, the soda was poured, and everything
-//  was assembled into a bag."`,
-      nodes: allNodes(undefined, ["takeOrder", "validatePayment", "cookFood", "makeDrink", "assemble", "deliver"]),
-      edges: allEdges(),
-      snapshots: timelineSnapshots,
-      memory: { order: { burger: 1, soda: 1 }, paid: true, cookFood: "Burger cooked", makeDrink: "Soda poured", assembled: true, delivered: true },
-      narrative: `1. takeOrder: Received order {burger: 1, soda: 1}
-2. validatePayment: Payment confirmed for order
-3. [FORK] cookFood + makeDrink ran in parallel
-   - cookFood: Burger cooked (2.1ms)
-   - makeDrink: Soda poured (1.8ms)
-4. assemble: All items packed
-5. deliver: Order delivered successfully`,
     },
     {
       phase: "observe",

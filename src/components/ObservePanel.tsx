@@ -1,30 +1,35 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import type { Node, Edge } from "@xyflow/react";
 import type { StageSnapshot } from "../tutorials/types";
+import { ObserveFlowchart } from "./ObserveFlowchart";
 
 interface ObservePanelProps {
+  nodes: Node[];
+  edges: Edge[];
   snapshots: StageSnapshot[];
   /** Currently selected stage from parent (for observe slider sync) */
   selectedIndex?: number;
   onSelectIndex?: (idx: number) => void;
 }
 
+/**
+ * Right panel during Observe phase: time-travel controls + flowchart + gantt.
+ * The slider/flowchart/gantt all stay on the right; the left panel shows data.
+ */
 export function ObservePanel({
+  nodes,
+  edges,
   snapshots,
   selectedIndex: externalIdx,
   onSelectIndex,
 }: ObservePanelProps) {
   const [internalIdx, setInternalIdx] = useState(0);
   const selectedIdx = externalIdx ?? internalIdx;
-  const selected = snapshots[selectedIdx];
-  const totalMs = snapshots.reduce((a, s) => a + s.durationMs, 0);
-
   const handleSelect = (idx: number) => {
     setInternalIdx(idx);
     onSelectIndex?.(idx);
   };
-
-  if (!selected) return null;
 
   return (
     <div
@@ -32,262 +37,266 @@ export function ObservePanel({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        padding: 16,
-        gap: 16,
-        overflow: "auto",
+        overflow: "hidden",
       }}
     >
-      {/* Timeline bar */}
-      <div>
+      {/* Time-Travel slider (sticky top) */}
+      <div
+        style={{
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--bg-secondary)",
+          flexShrink: 0,
+        }}
+      >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            gap: 8,
             marginBottom: 8,
           }}
         >
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+            Time-Travel Debugger
+          </span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            Scrub to replay execution
+          </span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={() => handleSelect(Math.max(0, selectedIdx - 1))}
+            disabled={selectedIdx === 0}
+            style={{
+              background: "var(--bg-tertiary)",
+              border: "1px solid var(--border)",
+              color: selectedIdx === 0 ? "var(--text-muted)" : "var(--text-primary)",
+              borderRadius: 6,
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: selectedIdx === 0 ? "not-allowed" : "pointer",
+              opacity: selectedIdx === 0 ? 0.5 : 1,
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            {"\u25C0"}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={snapshots.length - 1}
+            value={selectedIdx}
+            onChange={(e) => handleSelect(parseInt(e.target.value))}
+            style={{
+              flex: 1,
+              height: 4,
+              accentColor: "var(--phase-observe)",
+              cursor: "pointer",
+            }}
+          />
+          <button
+            onClick={() => handleSelect(Math.min(snapshots.length - 1, selectedIdx + 1))}
+            disabled={selectedIdx === snapshots.length - 1}
+            style={{
+              background: "var(--bg-tertiary)",
+              border: "1px solid var(--border)",
+              color: selectedIdx === snapshots.length - 1 ? "var(--text-muted)" : "var(--text-primary)",
+              borderRadius: 6,
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: selectedIdx === snapshots.length - 1 ? "not-allowed" : "pointer",
+              opacity: selectedIdx === snapshots.length - 1 ? 0.5 : 1,
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            {"\u25B6"}
+          </button>
           <span
             style={{
               fontSize: 11,
-              fontWeight: 600,
               color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            Execution Timeline
-          </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            Total: {totalMs.toFixed(1)}ms
-          </span>
-        </div>
-
-        {/* Horizontal stage buttons */}
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          {snapshots.map((snap, idx) => {
-            const isSelected = idx === selectedIdx;
-            const widthPct = (snap.durationMs / totalMs) * 100;
-            return (
-              <motion.button
-                key={snap.stageName}
-                onClick={() => handleSelect(idx)}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                style={{
-                  flex: `0 0 ${Math.max(widthPct, 10)}%`,
-                  padding: "8px 4px",
-                  background: isSelected
-                    ? "var(--phase-observe)"
-                    : "var(--bg-tertiary)",
-                  border: "none",
-                  color: isSelected ? "#000" : "var(--text-secondary)",
-                  fontSize: 10,
-                  fontWeight: isSelected ? 700 : 500,
-                  cursor: "pointer",
-                  textAlign: "center",
-                  transition: "all 0.2s ease",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {snap.stageLabel}
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Selected stage detail */}
-      <motion.div
-        key={selectedIdx}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        style={{ display: "flex", flexDirection: "column", gap: 12 }}
-      >
-        {/* Stage header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--phase-observe)",
-              }}
-            />
-            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
-              {selected.stageLabel}
-            </span>
-          </div>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text-muted)",
+              flexShrink: 0,
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {selected.durationMs}ms
+            {selectedIdx + 1}/{snapshots.length}
           </span>
         </div>
+      </div>
 
-        {/* Narrative */}
-        <div
-          style={{
-            background: "var(--phase-observe-dim)",
-            border: "1px solid var(--phase-observe-border)",
-            borderLeft: "3px solid var(--phase-observe)",
-            borderRadius: 8,
-            padding: "12px 16px",
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: "var(--text-secondary)",
-          }}
-        >
-          {selected.narrative}
-        </div>
+      {/* Flowchart (main area) */}
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <ObserveFlowchart
+          nodes={nodes}
+          edges={edges}
+          snapshots={snapshots}
+          selectedIndex={selectedIdx}
+          onSelectIndex={handleSelect}
+        />
+      </div>
 
-        {/* Memory snapshot */}
-        <div>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            Memory at this point
-          </span>
-          <div
-            style={{
-              marginTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            {Object.entries(selected.memory).map(([key, value]) => (
-              <div
-                key={key}
+      {/* Gantt chart (bottom) */}
+      <div
+        style={{
+          padding: "12px 16px",
+          borderTop: "1px solid var(--border)",
+          background: "var(--bg-secondary)",
+          flexShrink: 0,
+        }}
+      >
+        <GanttChart
+          snapshots={snapshots}
+          selectedIdx={selectedIdx}
+          onSelect={handleSelect}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GanttChart({
+  snapshots,
+  selectedIdx,
+  onSelect,
+}: {
+  snapshots: StageSnapshot[];
+  selectedIdx: number;
+  onSelect: (idx: number) => void;
+}) {
+  const totalWallTime = Math.max(
+    ...snapshots.map((s) => s.startMs + s.durationMs)
+  );
+
+  return (
+    <div>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Execution Timeline
+      </span>
+      <div
+        style={{
+          marginTop: 8,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {snapshots.map((snap, idx) => {
+          const leftPct = (snap.startMs / totalWallTime) * 100;
+          const widthPct = (snap.durationMs / totalWallTime) * 100;
+          const isSelected = idx === selectedIdx;
+          const isVisible = idx <= selectedIdx;
+
+          return (
+            <div
+              key={snap.stageName}
+              onClick={() => onSelect(idx)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: "pointer",
+                opacity: isVisible ? 1 : 0.3,
+                transition: "opacity 0.3s ease",
+              }}
+            >
+              <span
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 12,
+                  width: 80,
+                  fontSize: 10,
+                  color: isSelected
+                    ? "var(--phase-observe)"
+                    : "var(--text-muted)",
+                  fontWeight: isSelected ? 600 : 400,
+                  textAlign: "right",
+                  flexShrink: 0,
                 }}
               >
-                <span style={{ color: "var(--accent-light)" }}>{key}</span>
-                <span style={{ color: "var(--success)" }}>
-                  {typeof value === "object"
-                    ? JSON.stringify(value)
-                    : String(value)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Metrics mini-chart */}
-        <div>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            Stage Metrics
-          </span>
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-            {snapshots.map((snap, idx) => (
+                {snap.stageLabel}
+              </span>
               <div
-                key={snap.stageName}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
+                  flex: 1,
+                  height: 8,
+                  position: "relative",
+                  background: "var(--bg-tertiary)",
+                  borderRadius: 3,
                 }}
               >
-                <span
-                  style={{
-                    width: 100,
-                    fontSize: 11,
-                    color:
-                      idx === selectedIdx
-                        ? "var(--phase-observe)"
-                        : "var(--text-muted)",
-                    fontWeight: idx === selectedIdx ? 600 : 400,
-                    textAlign: "right",
-                    flexShrink: 0,
-                  }}
-                >
-                  {snap.stageLabel}
-                </span>
-                <div
-                  style={{
-                    flex: 1,
-                    height: 6,
-                    background: "var(--bg-tertiary)",
-                    borderRadius: 3,
-                    overflow: "hidden",
-                  }}
-                >
+                {isVisible && (
                   <motion.div
-                    initial={{ width: 0 }}
+                    initial={idx === selectedIdx ? { width: 0 } : false}
                     animate={{
-                      width: `${(snap.durationMs / Math.max(...snapshots.map((s) => s.durationMs))) * 100}%`,
+                      width: `${widthPct}%`,
                     }}
-                    transition={{ duration: 0.5, delay: idx * 0.05 }}
+                    transition={
+                      idx === selectedIdx
+                        ? { duration: 0.4, ease: "easeOut" }
+                        : { duration: 0 }
+                    }
                     style={{
+                      position: "absolute",
+                      left: `${leftPct}%`,
+                      top: 0,
                       height: "100%",
                       borderRadius: 3,
-                      background:
-                        idx === selectedIdx
-                          ? "var(--phase-observe)"
-                          : "var(--text-muted)",
+                      background: isSelected
+                        ? "var(--phase-observe)"
+                        : "var(--success)",
                     }}
                   />
-                </div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    width: 40,
-                    flexShrink: 0,
-                  }}
-                >
-                  {snap.durationMs}ms
-                </span>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  width: 36,
+                  flexShrink: 0,
+                }}
+              >
+                {snap.durationMs}ms
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Time axis */}
+      <div
+        style={{
+          marginTop: 4,
+          marginLeft: 88,
+          marginRight: 44,
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 9,
+          color: "var(--text-muted)",
+          fontFamily: "'JetBrains Mono', monospace",
+        }}
+      >
+        <span>0ms</span>
+        <span>{(totalWallTime / 2).toFixed(1)}ms</span>
+        <span>{totalWallTime.toFixed(1)}ms</span>
+      </div>
     </div>
   );
 }

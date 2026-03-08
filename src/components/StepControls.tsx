@@ -7,15 +7,10 @@ interface StepControlsProps {
   phase: TutorialPhase;
   title: string;
   description: string;
-  isPlaying: boolean;
-  /** Index within current phase (for observe slider) */
   phaseStepIndex: number;
   phaseStepCount: number;
   onPrev: () => void;
   onNext: () => void;
-  onTogglePlay: () => void;
-  onGoToStep?: (stepIndex: number) => void;
-  firstStepOfPhase: number;
 }
 
 const phaseColors: Record<TutorialPhase, string> = {
@@ -30,14 +25,10 @@ export function StepControls({
   phase,
   title,
   description,
-  isPlaying,
   phaseStepIndex,
   phaseStepCount,
   onPrev,
   onNext,
-  onTogglePlay,
-  onGoToStep,
-  firstStepOfPhase,
 }: StepControlsProps) {
   const color = phaseColors[phase];
   const isFirst = currentStep === 0;
@@ -78,37 +69,27 @@ export function StepControls({
         </div>
       </div>
 
-      {/* Phase-specific progress */}
-      {phase === "observe" && phaseStepCount > 1 ? (
-        <ObserveSlider
-          phaseStepIndex={phaseStepIndex}
-          phaseStepCount={phaseStepCount}
-          color={color}
-          onGoToStep={onGoToStep}
-          firstStepOfPhase={firstStepOfPhase}
-        />
-      ) : (
-        <div
-          style={{
-            height: 4,
-            background: "var(--bg-tertiary)",
-            borderRadius: 2,
-            overflow: "hidden",
+      {/* Progress bar */}
+      <div
+        style={{
+          height: 4,
+          background: "var(--bg-tertiary)",
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        <motion.div
+          animate={{
+            width: `${((currentStep + 1) / totalSteps) * 100}%`,
           }}
-        >
-          <motion.div
-            animate={{
-              width: `${((currentStep + 1) / totalSteps) * 100}%`,
-            }}
-            transition={{ duration: 0.3 }}
-            style={{
-              height: "100%",
-              background: color,
-              borderRadius: 2,
-            }}
-          />
-        </div>
-      )}
+          transition={{ duration: 0.3 }}
+          style={{
+            height: "100%",
+            background: color,
+            borderRadius: 2,
+          }}
+        />
+      </div>
 
       {/* Controls row */}
       <div
@@ -137,48 +118,21 @@ export function StepControls({
             </>
           )}
 
-          {/* Execute phase: Prev, centered Run button, Next */}
+          {/* Execute phase: Prev / Next */}
           {phase === "execute" && (
             <>
               <NavButton onClick={onPrev} disabled={isFirst} label="Prev" />
-              <button
-                onClick={onTogglePlay}
-                style={{
-                  background: isPlaying
-                    ? "var(--error)"
-                    : color,
-                  border: "none",
-                  color: isPlaying ? "white" : "#000",
-                  borderRadius: 24,
-                  padding: "8px 28px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {isPlaying ? (
-                  <>
-                    <span style={{ fontSize: 10 }}>{"\u23F8"}</span> Pause
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontSize: 10 }}>{"\u25B6"}</span> Run
-                  </>
-                )}
-              </button>
               <NavButton
                 onClick={onNext}
                 disabled={isLast}
                 label="Next"
+                primary
+                color={color}
               />
             </>
           )}
 
-          {/* Observe phase: Prev / Replay / Next */}
+          {/* Observe phase: Prev / Next */}
           {phase === "observe" && (
             <>
               <NavButton onClick={onPrev} disabled={isFirst} label="Prev" />
@@ -234,46 +188,5 @@ function NavButton({
     >
       {label}
     </button>
-  );
-}
-
-function ObserveSlider({
-  phaseStepIndex,
-  phaseStepCount,
-  color,
-  onGoToStep,
-  firstStepOfPhase,
-}: {
-  phaseStepIndex: number;
-  phaseStepCount: number;
-  color: string;
-  onGoToStep?: (stepIndex: number) => void;
-  firstStepOfPhase: number;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-        Replay
-      </span>
-      <input
-        type="range"
-        min={0}
-        max={phaseStepCount - 1}
-        value={phaseStepIndex}
-        onChange={(e) => {
-          const idx = parseInt(e.target.value);
-          onGoToStep?.(firstStepOfPhase + idx);
-        }}
-        style={{
-          flex: 1,
-          height: 4,
-          accentColor: color,
-          cursor: "pointer",
-        }}
-      />
-      <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
-        {phaseStepIndex + 1}/{phaseStepCount}
-      </span>
-    </div>
   );
 }

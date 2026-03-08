@@ -2,12 +2,16 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Tutorial, TutorialPhase } from "../tutorials/types";
 import { CodePanel } from "./CodePanel";
-import { FlowchartPanel } from "./FlowchartPanel";
-import { MemoryTimeline } from "./MemoryTimeline";
+import { BuildFlowchart } from "./BuildFlowchart";
+import { ExecuteFlowchart } from "./ExecuteFlowchart";
+import { ExecuteDataPanel } from "./ExecuteDataPanel";
+import { RunButton } from "./RunButton";
+import { ObserveDataPanel } from "./ObserveDataPanel";
 import { ObservePanel } from "./ObservePanel";
 import { EndScreen } from "./EndScreen";
 import { StepControls } from "./StepControls";
 import { PhaseHeader } from "./PhaseHeader";
+import { DescriptionOverlay } from "./DescriptionOverlay";
 
 interface TutorialShellProps {
   tutorial: Tutorial;
@@ -20,10 +24,58 @@ interface PanelContent {
 
 const TRANSITION_MS = 600;
 
+/** Extract description strings organically from the code.
+ *  For individual stages: extracts the description positional param from new lines.
+ *  For .build(): collects ALL stage descriptions into a full chart.description. */
+function extractDescriptions(code: string, newCodeRange?: [number, number]): string | undefined {
+  if (!newCodeRange) return undefined;
+  const lines = code.split("\n");
+  const newLines = lines.slice(newCodeRange[0] - 1, newCodeRange[1]).join("\n");
+
+  // When .build() is in the new code, show the full chart.description
+  if (newLines.includes(".build()")) {
+    const allDescs: string[] = [];
+    for (const m of code.matchAll(/"([^"]+)"\)\s*$/gm)) allDescs.push(m[1]);
+    // Also find parallel displayNames
+    const parallelNames: string[] = [];
+    for (const m of code.matchAll(/displayName:\s*"([^"]+)"/g)) parallelNames.push(m[1]);
+    if (allDescs.length === 0) return undefined;
+    // Build the chart.description format
+    const parts: string[] = [];
+    let step = 0;
+    for (const d of allDescs) {
+      step++;
+      // Insert parallel step before the step that follows the parallel block
+      if (parallelNames.length > 0 && step === 3) {
+        parts.push(`${step}. Runs in parallel: ${parallelNames.join(", ")}`);
+        step++;
+      }
+      parts.push(`${step}. ${d}`);
+    }
+    // If parallel wasn't inserted yet (no descriptions after it)
+    if (parallelNames.length > 0 && !parts.some((p) => p.includes("parallel"))) {
+      step++;
+      parts.push(`${step}. Runs in parallel: ${parallelNames.join(", ")}`);
+    }
+    return parts.join("\n");
+  }
+
+  // Otherwise extract individual description from new lines only
+  const descs: string[] = [];
+  for (const m of newLines.matchAll(/"([^"]+)"\)\s*$/gm)) descs.push(m[1]);
+  return descs.length > 0 ? descs.join(" · ") : undefined;
+}
+
 export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const playTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Observe phase: shared snapshot index between flowchart and panel
+  const [observeSnapshotIdx, setObserveSnapshotIdx] = useState(0);
+
+  // Description overlay for build phase
+  const [showDescription, setShowDescription] = useState(false);
 
   // Transition state
   const [transitioning, setTransitioning] = useState(false);
@@ -41,6 +93,28 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return { firstStepOfPhase: firstIdx, phaseStepCount: count, phaseStepIndex: stepIndex - firstIdx };
   }, [tutorial.steps, step.phase, stepIndex]);
 
+  // Reset observe snapshot index when entering observe phase
+  useEffect(() => {
+    if (step.phase === "observe" && prevPhaseRef.current !== "observe") {
+      setObserveSnapshotIdx(0);
+    }
+  }, [step.phase]);
+
+  // Extract description organically from the code's new lines
+  const codeDescription = useMemo(
+    () => extractDescriptions(step.code, step.newCodeRange),
+    [step.code, step.newCodeRange]
+  );
+
+  // Show description overlay when new code contains a .description() call
+  useEffect(() => {
+    setShowDescription(!!codeDescription);
+  }, [stepIndex, codeDescription]);
+
+  const togglePlay = useCallback(() => {
+    setIsPlaying((p) => !p);
+  }, []);
+
   // Phase-aware background tint
   const phaseBg: Record<TutorialPhase, string> = {
     build: "var(--phase-build-dim)",
@@ -49,39 +123,59 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
   };
 
   const getPanels = useCallback(
-    (s: (typeof tutorial.steps)[number]): PanelContent => {
+    (s: (typeof tutorial.steps)[number], snapshotIdx: number): PanelContent => {
       switch (s.phase) {
         case "build":
           return {
             left: <CodePanel code={s.code} highlightLines={s.highlightLines} newCodeRange={s.newCodeRange} />,
-            right: <FlowchartPanel nodes={s.nodes} edges={s.edges} linkedNodeId={s.linkedNodeId} />,
+            right: <BuildFlowchart nodes={s.nodes} edges={s.edges} linkedNodeId={s.linkedNodeId} />,
           };
-        case "execute":
+        case "execute": {
+          const hasMemory = s.memory && Object.keys(s.memory).length > 0;
           return {
-            left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
-            right: <MemoryTimeline memory={s.memory || {}} narrative={s.narrative} />,
+            left: <ExecuteFlowchart nodes={s.nodes} edges={s.edges} />,
+            right: hasMemory ? (
+              <ExecuteDataPanel memory={s.memory || {}} narrative={s.narrative} />
+            ) : (
+              <RunButton isPlaying={isPlaying} onTogglePlay={togglePlay} />
+            ),
           };
+        }
         case "observe": {
           // Last step = end screen
           const isLastStep = s === tutorial.steps[tutorial.steps.length - 1];
           if (isLastStep) {
             return {
-              left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
+              left: s.snapshots ? (
+                <ObserveDataPanel snapshots={s.snapshots} selectedIndex={s.snapshots.length - 1} />
+              ) : (
+                <ExecuteFlowchart nodes={s.nodes} edges={s.edges} />
+              ),
               right: <EndScreen />,
             };
           }
           return {
-            left: <FlowchartPanel nodes={s.nodes} edges={s.edges} />,
-            right: s.snapshots ? (
-              <ObservePanel snapshots={s.snapshots} />
+            left: s.snapshots ? (
+              <ObserveDataPanel snapshots={s.snapshots} selectedIndex={snapshotIdx} />
             ) : (
-              <MemoryTimeline memory={s.memory || {}} narrative={s.narrative} />
+              <ExecuteFlowchart nodes={s.nodes} edges={s.edges} />
+            ),
+            right: s.snapshots ? (
+              <ObservePanel
+                nodes={s.nodes}
+                edges={s.edges}
+                snapshots={s.snapshots}
+                selectedIndex={snapshotIdx}
+                onSelectIndex={setObserveSnapshotIdx}
+              />
+            ) : (
+              <ExecuteDataPanel memory={s.memory || {}} narrative={s.narrative} />
             ),
           };
         }
       }
     },
-    [tutorial.steps]
+    [tutorial.steps, isPlaying, togglePlay]
   );
 
   // Phase transition animation
@@ -89,7 +183,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     if (step.phase !== prevPhaseRef.current) {
       const prevStepIndex = Math.max(0, stepIndex - 1);
       const prevStep = tutorial.steps[prevStepIndex];
-      const prevPanels = getPanels(prevStep);
+      const prevPanels = getPanels(prevStep, observeSnapshotIdx);
       setOldLeft(prevPanels.left);
       setTransitioning(true);
 
@@ -103,7 +197,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return () => {
       if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     };
-  }, [step.phase, stepIndex, tutorial.steps, getPanels]);
+  }, [step.phase, stepIndex, tutorial.steps, getPanels, observeSnapshotIdx]);
 
   const goNext = useCallback(() => {
     setStepIndex((i) => Math.min(i + 1, totalSteps - 1));
@@ -114,13 +208,13 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     setIsPlaying(false);
   }, []);
 
-  const goToStep = useCallback((idx: number) => {
-    setStepIndex(idx);
-  }, []);
-
-  const togglePlay = useCallback(() => {
-    setIsPlaying((p) => !p);
-  }, []);
+  const goToPhase = useCallback((phase: TutorialPhase) => {
+    const idx = tutorial.steps.findIndex((s) => s.phase === phase);
+    if (idx >= 0) {
+      setStepIndex(idx);
+      setIsPlaying(false);
+    }
+  }, [tutorial.steps]);
 
   // Auto-play during execute phase
   useEffect(() => {
@@ -159,7 +253,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev]);
 
-  const { left, right } = getPanels(step);
+  const { left, right } = getPanels(step, observeSnapshotIdx);
 
   return (
     <div
@@ -171,7 +265,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
       }}
     >
       {/* Phase stepper header */}
-      <PhaseHeader currentPhase={step.phase} tutorialName={tutorial.name} />
+      <PhaseHeader currentPhase={step.phase} tutorialName={tutorial.name} onPhaseClick={goToPhase} />
 
       {/* Main content area */}
       <div
@@ -186,7 +280,17 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         {transitioning ? (
           <TransitionLayout oldLeft={oldLeft} newLeft={left} newRight={right} />
         ) : (
-          <StaticLayout left={left} right={right} />
+          <StaticLayout
+            left={left}
+            right={right}
+            overlay={
+              <DescriptionOverlay
+                description={codeDescription}
+                visible={showDescription}
+                onDismiss={() => setShowDescription(false)}
+              />
+            }
+          />
         )}
       </div>
 
@@ -197,20 +301,24 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         phase={step.phase}
         title={step.title}
         description={step.description}
-        isPlaying={isPlaying}
         phaseStepIndex={phaseInfo.phaseStepIndex}
         phaseStepCount={phaseInfo.phaseStepCount}
-        firstStepOfPhase={phaseInfo.firstStepOfPhase}
         onPrev={goPrev}
         onNext={goNext}
-        onTogglePlay={togglePlay}
-        onGoToStep={goToStep}
       />
     </div>
   );
 }
 
-function StaticLayout({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
+function StaticLayout({
+  left,
+  right,
+  overlay,
+}: {
+  left: React.ReactNode;
+  right: React.ReactNode;
+  overlay?: React.ReactNode;
+}) {
   return (
     <div style={{ display: "flex", height: "100%", width: "100%" }}>
       <div
@@ -223,7 +331,10 @@ function StaticLayout({ left, right }: { left: React.ReactNode; right: React.Rea
       >
         {left}
       </div>
-      <div style={{ flex: 1, height: "100%", overflow: "hidden" }}>{right}</div>
+      <div style={{ flex: 1, height: "100%", overflow: "hidden", position: "relative" }}>
+        {right}
+        {overlay}
+      </div>
     </div>
   );
 }

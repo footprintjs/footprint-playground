@@ -7,6 +7,7 @@ export interface StageSnapshot {
   stageLabel: string;
   memory: Record<string, unknown>;
   narrative: string;
+  startMs: number;
   durationMs: number;
 }
 
