@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { TutorialPhase } from "../tutorials/types";
+import { useTheme } from "../ThemeContext";
 
 const phases: { key: TutorialPhase; label: string; icon: string }[] = [
   { key: "build", label: "Build", icon: "\u{1F6E0}" },
@@ -20,6 +21,7 @@ interface PhaseHeaderProps {
 
 export function PhaseHeader({ currentPhase, tutorialName }: PhaseHeaderProps) {
   const currentIdx = phases.findIndex((p) => p.key === currentPhase);
+  const { theme, toggle } = useTheme();
 
   return (
     <header
@@ -142,10 +144,31 @@ export function PhaseHeader({ currentPhase, tutorialName }: PhaseHeaderProps) {
         })}
       </div>
 
-      {/* Tutorial name */}
-      <span style={{ color: "var(--text-muted)", fontSize: 12, flexShrink: 0 }}>
-        {tutorialName}
-      </span>
+      {/* Tutorial name + theme toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+          {tutorialName}
+        </span>
+        <button
+          onClick={toggle}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          style={{
+            background: "var(--bg-tertiary)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            width: 32,
+            height: 32,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            fontSize: 14,
+            transition: "all 0.2s ease",
+          }}
+        >
+          {theme === "dark" ? "\u2600\uFE0F" : "\u{1F319}"}
+        </button>
+      </div>
     </header>
   );
 }

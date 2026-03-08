@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { motion } from "framer-motion";
+import { useTheme } from "../ThemeContext";
 
 interface CodePanelProps {
   code: string;
@@ -15,6 +16,15 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
   const editorRef = useRef<MonacoEditor>(undefined);
   const monacoRef = useRef<Monaco>(undefined);
   const decorationIds = useRef<string[]>([]);
+  const { theme } = useTheme();
+  const themesDefinedRef = useRef(false);
+
+  // Switch Monaco theme when app theme changes
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco || !themesDefinedRef.current) return;
+    monaco.editor.setTheme(theme === "light" ? "footprint-light" : "footprint-dark");
+  }, [theme]);
 
   // Update decorations whenever props change
   useEffect(() => {
@@ -62,7 +72,7 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
       <Editor
         height="100%"
         language="typescript"
-        theme="vs-dark"
+        theme={theme === "light" ? "vs" : "vs-dark"}
         value={code}
         options={{
           readOnly: true,
@@ -87,7 +97,7 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
           editorRef.current = editor;
           monacoRef.current = monaco;
 
-          // Custom dark theme matching our app
+          // Custom themes matching our app
           monaco.editor.defineTheme("footprint-dark", {
             base: "vs-dark",
             inherit: true,
@@ -106,7 +116,26 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
               "editor.lineHighlightBackground": "#334155",
             },
           });
-          monaco.editor.setTheme("footprint-dark");
+          monaco.editor.defineTheme("footprint-light", {
+            base: "vs",
+            inherit: true,
+            rules: [
+              { token: "comment", foreground: "94a3b8" },
+              { token: "keyword", foreground: "4f46e5" },
+              { token: "string", foreground: "16a34a" },
+              { token: "number", foreground: "d97706" },
+              { token: "type", foreground: "0284c7" },
+            ],
+            colors: {
+              "editor.background": "#ffffff",
+              "editor.foreground": "#0f172a",
+              "editorLineNumber.foreground": "#94a3b8",
+              "editorLineNumber.activeForeground": "#475569",
+              "editor.lineHighlightBackground": "#f1f5f9",
+            },
+          });
+          themesDefinedRef.current = true;
+          monaco.editor.setTheme(theme === "light" ? "footprint-light" : "footprint-dark");
 
           // Apply initial decorations
           const decorations: Parameters<typeof editor.deltaDecorations>[1] = [];

@@ -52,7 +52,7 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
           border: `2px solid ${borderColor}`,
           borderRadius: 12,
           padding: "12px 24px",
-          color: "var(--text-primary)",
+          color: data.active || data.done || data.error ? "white" : "var(--node-text)",
           fontSize: 14,
           fontWeight: 500,
           minWidth: 140,
@@ -63,7 +63,7 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
               ? "0 0 12px rgba(34, 197, 94, 0.2)"
               : data.linked
                 ? "0 0 16px rgba(99, 102, 241, 0.3)"
-                : "0 2px 8px rgba(0,0,0,0.3)",
+                : "0 2px 8px var(--shadow-node)",
         }}
       >
         <Handle
