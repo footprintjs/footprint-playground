@@ -43,43 +43,41 @@ function edge(source: string, target: string, animated = false): Edge {
 
 const buildCode = `import { flowChart } from "footprintjs";
 
-const chart = flowChart("takeOrder", (scope) => {
+const chart = flowChart("Take Order", (scope) => {
   scope.set("order", { burger: 1, soda: 1 });
-}, undefined, "Take Order", undefined,
+}, "takeOrder", undefined,
 "Receive the customer's food order")`;
 
 const buildStep1Code = `${buildCode}`;
 
 const buildStep2Code = `${buildCode}
-.addFunction("validatePayment", (scope) => {
+.addFunction("Validate Payment", (scope) => {
   scope.set("paid", true);
-}, undefined, "Validate Payment",
+}, "validatePayment",
 "Confirm payment for the order")`;
 
 const buildStep3Code = `${buildStep2Code}
 .addListOfFunction([
-  { id: "cookFood", name: "cookFood",
-    displayName: "Cook Food",
+  { id: "cookFood", name: "Cook Food",
     fn: (scope) => {
       scope.set("cookFood", "Burger cooked");
   }},
-  { id: "makeDrink", name: "makeDrink",
-    displayName: "Make Drink",
+  { id: "makeDrink", name: "Make Drink",
     fn: (scope) => {
       scope.set("makeDrink", "Soda poured");
   }},
 ])`;
 
 const buildStep4Code = `${buildStep3Code}
-.addFunction("assemble", (scope) => {
+.addFunction("Assemble", (scope) => {
   scope.set("assembled", true);
-}, undefined, "Assemble",
+}, "assemble",
 "Pack all items into a bag")`;
 
 const buildStep5Code = `${buildStep4Code}
-.addFunction("deliver", (scope) => {
+.addFunction("Deliver", (scope) => {
   scope.set("delivered", true);
-}, undefined, "Deliver",
+}, "deliver",
 "Hand the order to the customer")
 .build();`;
 
@@ -208,8 +206,8 @@ export const restaurantOrder: Tutorial = {
       title: "Fork: parallel preparation",
       description: "Chain .addListOfFunction() — cook food and make drink run in parallel.",
       code: buildStep3Code,
-      highlightLines: [11, 22],
-      newCodeRange: [11, 22],
+      highlightLines: [11, 20],
+      newCodeRange: [11, 20],
       linkedNodeId: "cookFood",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -228,8 +226,8 @@ export const restaurantOrder: Tutorial = {
       title: "Assemble the order",
       description: "After both parallel branches complete, assemble everything into a bag.",
       code: buildStep4Code,
-      highlightLines: [23, 26],
-      newCodeRange: [23, 26],
+      highlightLines: [21, 24],
+      newCodeRange: [21, 24],
       linkedNodeId: "assemble",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),
@@ -251,8 +249,8 @@ export const restaurantOrder: Tutorial = {
       title: "Deliver and build",
       description: "Final stage + .build() compiles the chain into an executable flowchart.",
       code: buildStep5Code,
-      highlightLines: [27, 31],
-      newCodeRange: [27, 31],
+      highlightLines: [25, 29],
+      newCodeRange: [25, 29],
       linkedNodeId: "deliver",
       nodes: [
         node("takeOrder", "Take Order", pos.takeOrder),

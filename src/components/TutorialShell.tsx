@@ -36,9 +36,9 @@ function extractDescriptions(code: string, newCodeRange?: [number, number]): str
   if (newLines.includes(".build()")) {
     const allDescs: string[] = [];
     for (const m of code.matchAll(/"([^"]+)"\)\s*$/gm)) allDescs.push(m[1]);
-    // Also find parallel displayNames
+    // Also find parallel item names (from addListOfFunction specs)
     const parallelNames: string[] = [];
-    for (const m of code.matchAll(/displayName:\s*"([^"]+)"/g)) parallelNames.push(m[1]);
+    for (const m of code.matchAll(/name:\s*"([^"]+)"/g)) parallelNames.push(m[1]);
     if (allDescs.length === 0) return undefined;
     // Build the chart.description format
     const parts: string[] = [];
