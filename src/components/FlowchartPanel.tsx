@@ -5,7 +5,6 @@ import {
   useReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { Node, Edge } from "@xyflow/react";
@@ -53,13 +52,6 @@ function FlowchartInner({ nodes, edges, linkedNodeId }: FlowchartPanelProps) {
         gap={20}
         size={1}
         color="var(--bg-tertiary)"
-      />
-      <Controls
-        showInteractive={false}
-        style={{
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border)",
-        }}
       />
     </ReactFlow>
   );

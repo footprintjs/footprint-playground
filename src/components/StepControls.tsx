@@ -118,8 +118,8 @@ export function StepControls({
           justifyContent: "space-between",
         }}
       >
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          {currentStep + 1} / {totalSteps}
+        <span style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "capitalize" }}>
+          {phase} {phaseStepIndex + 1}/{phaseStepCount}
         </span>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
