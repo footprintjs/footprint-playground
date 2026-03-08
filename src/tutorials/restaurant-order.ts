@@ -41,7 +41,7 @@ function edge(source: string, target: string, animated = false): Edge {
 // PHASE 1 — BUILD TIME (steps 0–5)
 // ──────────────────────────────────────────
 
-const buildCode = `import { FlowChartBuilder } from "footprint";
+const buildCode = `import { FlowChartBuilder } from "footprintjs";
 
 const builder = new FlowChartBuilder("restaurant");`;
 

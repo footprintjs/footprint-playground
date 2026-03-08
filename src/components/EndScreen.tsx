@@ -106,7 +106,7 @@ export function EndScreen() {
           GitHub
         </a>
         <a
-          href="https://www.npmjs.com/package/footprint"
+          href="https://www.npmjs.com/package/footprintjs"
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -120,7 +120,7 @@ export function EndScreen() {
             border: "1px solid var(--border)",
           }}
         >
-          npm install footprint
+          npm install footprintjs
         </a>
       </motion.div>
     </div>
