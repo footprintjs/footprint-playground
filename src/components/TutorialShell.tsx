@@ -12,6 +12,9 @@ import { EndScreen } from "./EndScreen";
 import { StepControls } from "./StepControls";
 import { PhaseHeader } from "./PhaseHeader";
 import { DescriptionOverlay } from "./DescriptionOverlay";
+import { MobileBuildLayout } from "./MobileBuildLayout";
+import { MobileExecuteLayout } from "./MobileExecuteLayout";
+import { MobileObserveLayout } from "./MobileObserveLayout";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 interface TutorialShellProps {
@@ -67,19 +70,11 @@ function extractDescriptions(code: string, newCodeRange?: [number, number]): str
   return descs.length > 0 ? descs.join(" · ") : undefined;
 }
 
-/** Panel label pairs for mobile toggle, keyed by phase */
-const mobilePanelLabels: Record<TutorialPhase, [string, string]> = {
-  build: ["Code", "Chart"],
-  execute: ["Chart", "Data"],
-  observe: ["Data", "Chart"],
-};
-
 export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const playTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isMobile = useIsMobile();
-  const [activeMobilePanel, setActiveMobilePanel] = useState<"left" | "right">("left");
 
   // Observe phase: shared snapshot index between flowchart and panel
   const [observeSnapshotIdx, setObserveSnapshotIdx] = useState(0);
@@ -315,30 +310,20 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
           flexDirection: "column",
         }}
       >
-        {isMobile && (
-          <MobilePanelTabs
-            labels={mobilePanelLabels[step.phase]}
-            active={activeMobilePanel}
-            onSwitch={setActiveMobilePanel}
-            phase={step.phase}
-          />
-        )}
         <div style={{ flex: 1, overflow: "hidden" }}>
           {transitioning ? (
             <TransitionLayout oldLeft={oldLeft} newLeft={left} newRight={right} isMobile={isMobile} />
           ) : isMobile ? (
-            <MobileLayout
-              left={left}
-              right={right}
-              activePanel={activeMobilePanel}
-              overlay={
-                <DescriptionOverlay
-                  description={codeDescription}
-                  visible={showDescription}
-                  onDismiss={() => setShowDescription(false)}
-                  isMobile={isMobile}
-                />
-              }
+            <MobilePhaseLayout
+              step={step}
+              tutorial={tutorial}
+              isPlaying={isPlaying}
+              togglePlay={togglePlay}
+              observeSnapshotIdx={observeSnapshotIdx}
+              setObserveSnapshotIdx={setObserveSnapshotIdx}
+              codeDescription={codeDescription}
+              showDescription={showDescription}
+              setShowDescription={setShowDescription}
             />
           ) : (
             <StaticLayout
@@ -403,82 +388,108 @@ function StaticLayout({
   );
 }
 
-function MobileLayout({
-  left,
-  right,
-  activePanel,
-  overlay,
+/** Phase-specific mobile layout — renders both panels simultaneously */
+function MobilePhaseLayout({
+  step,
+  tutorial,
+  isPlaying,
+  togglePlay,
+  observeSnapshotIdx,
+  setObserveSnapshotIdx,
+  codeDescription,
+  showDescription,
+  setShowDescription,
 }: {
-  left: React.ReactNode;
-  right: React.ReactNode;
-  activePanel: "left" | "right";
-  overlay?: React.ReactNode;
+  step: Tutorial["steps"][number];
+  tutorial: Tutorial;
+  isPlaying: boolean;
+  togglePlay: () => void;
+  observeSnapshotIdx: number;
+  setObserveSnapshotIdx: (idx: number) => void;
+  codeDescription: string | undefined;
+  showDescription: boolean;
+  setShowDescription: (v: boolean) => void;
 }) {
-  return (
-    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-      <div style={{ width: "100%", height: "100%", display: activePanel === "left" ? "block" : "none" }}>
-        {left}
-      </div>
-      <div style={{ width: "100%", height: "100%", display: activePanel === "right" ? "block" : "none" }}>
-        {right}
-      </div>
-      {overlay}
-    </div>
+  const descOverlay = (
+    <DescriptionOverlay
+      description={codeDescription}
+      visible={showDescription}
+      onDismiss={() => setShowDescription(false)}
+      isMobile={true}
+    />
   );
-}
 
-function MobilePanelTabs({
-  labels,
-  active,
-  onSwitch,
-  phase,
-}: {
-  labels: [string, string];
-  active: "left" | "right";
-  onSwitch: (panel: "left" | "right") => void;
-  phase: TutorialPhase;
-}) {
-  const phaseColor: Record<TutorialPhase, string> = {
-    build: "var(--phase-build)",
-    execute: "var(--phase-execute)",
-    observe: "var(--phase-observe)",
-  };
-  const color = phaseColor[phase];
+  switch (step.phase) {
+    case "build":
+      return (
+        <MobileBuildLayout
+          code={<CodePanel code={step.code} highlightLines={step.highlightLines} newCodeRange={step.newCodeRange} />}
+          chart={<BuildFlowchart nodes={step.nodes} edges={step.edges} linkedNodeId={step.linkedNodeId} />}
+          overlay={descOverlay}
+        />
+      );
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg-secondary)",
-        flexShrink: 0,
-      }}
-    >
-      {(["left", "right"] as const).map((side, i) => {
-        const isActive = active === side;
+    case "execute": {
+      const hasMemory = !!step.memory && Object.keys(step.memory).length > 0;
+      return (
+        <MobileExecuteLayout
+          chart={<ExecuteFlowchart nodes={step.nodes} edges={step.edges} />}
+          data={<ExecuteDataPanel memory={step.memory || {}} narrative={step.narrative} />}
+          runButton={<RunButton isPlaying={isPlaying} onTogglePlay={togglePlay} />}
+          memory={step.memory}
+          hasData={hasMemory}
+        />
+      );
+    }
+
+    case "observe": {
+      const isLastStep = step === tutorial.steps[tutorial.steps.length - 1];
+      if (isLastStep) {
         return (
-          <button
-            key={side}
-            onClick={() => onSwitch(side)}
-            style={{
-              flex: 1,
-              padding: "8px 0",
-              fontSize: 12,
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? color : "var(--text-muted)",
-              background: "transparent",
-              border: "none",
-              borderBottom: isActive ? `2px solid ${color}` : "2px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {labels[i]}
-          </button>
+          <MobileObserveLayout
+            data={
+              step.snapshots ? (
+                <ObserveDataPanel snapshots={step.snapshots} selectedIndex={step.snapshots.length - 1} />
+              ) : (
+                <ExecuteFlowchart nodes={step.nodes} edges={step.edges} />
+              )
+            }
+            chart={<EndScreen />}
+            snapshots={step.snapshots}
+            selectedIndex={step.snapshots ? step.snapshots.length - 1 : 0}
+            onSelectIndex={setObserveSnapshotIdx}
+          />
         );
-      })}
-    </div>
-  );
+      }
+      return (
+        <MobileObserveLayout
+          data={
+            step.snapshots ? (
+              <ObserveDataPanel snapshots={step.snapshots} selectedIndex={observeSnapshotIdx} />
+            ) : (
+              <ExecuteFlowchart nodes={step.nodes} edges={step.edges} />
+            )
+          }
+          chart={
+            step.snapshots ? (
+              <ObservePanel
+                nodes={step.nodes}
+                edges={step.edges}
+                snapshots={step.snapshots}
+                selectedIndex={observeSnapshotIdx}
+                onSelectIndex={setObserveSnapshotIdx}
+              />
+            ) : (
+              <ExecuteDataPanel memory={step.memory || {}} narrative={step.narrative} />
+            )
+          }
+          snapshots={step.snapshots}
+          selectedIndex={observeSnapshotIdx}
+          onSelectIndex={setObserveSnapshotIdx}
+        />
+      );
+    }
+  }
 }
 
 function TransitionLayout({
