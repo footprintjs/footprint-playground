@@ -12,6 +12,7 @@ import { EndScreen } from "./EndScreen";
 import { StepControls } from "./StepControls";
 import { PhaseHeader } from "./PhaseHeader";
 import { DescriptionOverlay } from "./DescriptionOverlay";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 interface TutorialShellProps {
   tutorial: Tutorial;
@@ -66,10 +67,19 @@ function extractDescriptions(code: string, newCodeRange?: [number, number]): str
   return descs.length > 0 ? descs.join(" · ") : undefined;
 }
 
+/** Panel label pairs for mobile toggle, keyed by phase */
+const mobilePanelLabels: Record<TutorialPhase, [string, string]> = {
+  build: ["Code", "Chart"],
+  execute: ["Chart", "Data"],
+  observe: ["Data", "Chart"],
+};
+
 export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const playTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isMobile = useIsMobile();
+  const [activeMobilePanel, setActiveMobilePanel] = useState<"left" | "right">("left");
 
   // Observe phase: shared snapshot index between flowchart and panel
   const [observeSnapshotIdx, setObserveSnapshotIdx] = useState(0);
@@ -253,6 +263,32 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev]);
 
+  // Touch swipe navigation (mobile)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!isMobile) return;
+    const onStart = (e: TouchEvent) => {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+      const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+      touchStartRef.current = null;
+      // Only trigger if horizontal swipe is dominant and > 50px
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) goNext();
+        else goPrev();
+      }
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [isMobile, goNext, goPrev]);
+
   const { left, right } = getPanels(step, observeSnapshotIdx);
 
   return (
@@ -265,7 +301,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
       }}
     >
       {/* Phase stepper header */}
-      <PhaseHeader currentPhase={step.phase} tutorialName={tutorial.name} onPhaseClick={goToPhase} />
+      <PhaseHeader currentPhase={step.phase} tutorialName={tutorial.name} onPhaseClick={goToPhase} isMobile={isMobile} />
 
       {/* Main content area */}
       <div
@@ -275,23 +311,50 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
           position: "relative",
           background: phaseBg[step.phase],
           transition: "background 0.5s ease",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {transitioning ? (
-          <TransitionLayout oldLeft={oldLeft} newLeft={left} newRight={right} />
-        ) : (
-          <StaticLayout
-            left={left}
-            right={right}
-            overlay={
-              <DescriptionOverlay
-                description={codeDescription}
-                visible={showDescription}
-                onDismiss={() => setShowDescription(false)}
-              />
-            }
+        {isMobile && (
+          <MobilePanelTabs
+            labels={mobilePanelLabels[step.phase]}
+            active={activeMobilePanel}
+            onSwitch={setActiveMobilePanel}
+            phase={step.phase}
           />
         )}
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          {transitioning ? (
+            <TransitionLayout oldLeft={oldLeft} newLeft={left} newRight={right} isMobile={isMobile} />
+          ) : isMobile ? (
+            <MobileLayout
+              left={left}
+              right={right}
+              activePanel={activeMobilePanel}
+              overlay={
+                <DescriptionOverlay
+                  description={codeDescription}
+                  visible={showDescription}
+                  onDismiss={() => setShowDescription(false)}
+                  isMobile={isMobile}
+                />
+              }
+            />
+          ) : (
+            <StaticLayout
+              left={left}
+              right={right}
+              overlay={
+                <DescriptionOverlay
+                  description={codeDescription}
+                  visible={showDescription}
+                  onDismiss={() => setShowDescription(false)}
+                  isMobile={false}
+                />
+              }
+            />
+          )}
+        </div>
       </div>
 
       {/* Bottom controls */}
@@ -305,6 +368,7 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         phaseStepCount={phaseInfo.phaseStepCount}
         onPrev={goPrev}
         onNext={goNext}
+        isMobile={isMobile}
       />
     </div>
   );
@@ -339,17 +403,122 @@ function StaticLayout({
   );
 }
 
+function MobileLayout({
+  left,
+  right,
+  activePanel,
+  overlay,
+}: {
+  left: React.ReactNode;
+  right: React.ReactNode;
+  activePanel: "left" | "right";
+  overlay?: React.ReactNode;
+}) {
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+      <div style={{ width: "100%", height: "100%", display: activePanel === "left" ? "block" : "none" }}>
+        {left}
+      </div>
+      <div style={{ width: "100%", height: "100%", display: activePanel === "right" ? "block" : "none" }}>
+        {right}
+      </div>
+      {overlay}
+    </div>
+  );
+}
+
+function MobilePanelTabs({
+  labels,
+  active,
+  onSwitch,
+  phase,
+}: {
+  labels: [string, string];
+  active: "left" | "right";
+  onSwitch: (panel: "left" | "right") => void;
+  phase: TutorialPhase;
+}) {
+  const phaseColor: Record<TutorialPhase, string> = {
+    build: "var(--phase-build)",
+    execute: "var(--phase-execute)",
+    observe: "var(--phase-observe)",
+  };
+  const color = phaseColor[phase];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--bg-secondary)",
+        flexShrink: 0,
+      }}
+    >
+      {(["left", "right"] as const).map((side, i) => {
+        const isActive = active === side;
+        return (
+          <button
+            key={side}
+            onClick={() => onSwitch(side)}
+            style={{
+              flex: 1,
+              padding: "8px 0",
+              fontSize: 12,
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? color : "var(--text-muted)",
+              background: "transparent",
+              border: "none",
+              borderBottom: isActive ? `2px solid ${color}` : "2px solid transparent",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {labels[i]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function TransitionLayout({
   oldLeft,
   newLeft,
   newRight,
+  isMobile,
 }: {
   oldLeft: React.ReactNode;
   newLeft: React.ReactNode;
   newRight: React.ReactNode;
+  isMobile: boolean;
 }) {
   const ease = [0.4, 0, 0.2, 1] as const;
   const duration = TRANSITION_MS / 1000;
+  const panelWidth = isMobile ? "100%" : "50%";
+
+  if (isMobile) {
+    // Simple crossfade on mobile
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: duration * 0.5 }}
+          style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+        >
+          {oldLeft}
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: duration * 0.5, delay: duration * 0.3 }}
+          style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+        >
+          {newLeft}
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
@@ -357,7 +526,7 @@ function TransitionLayout({
         initial={{ left: "0%", opacity: 1 }}
         animate={{ left: "-50%", opacity: 0 }}
         transition={{ duration, ease }}
-        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden", borderRight: "1px solid var(--border)" }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: panelWidth, overflow: "hidden", borderRight: "1px solid var(--border)" }}
       >
         {oldLeft}
       </motion.div>
@@ -365,7 +534,7 @@ function TransitionLayout({
         initial={{ left: "50%" }}
         animate={{ left: "0%" }}
         transition={{ duration, ease }}
-        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden", borderRight: "1px solid var(--border)" }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: panelWidth, overflow: "hidden", borderRight: "1px solid var(--border)" }}
       >
         {newLeft}
       </motion.div>
@@ -373,7 +542,7 @@ function TransitionLayout({
         initial={{ left: "100%" }}
         animate={{ left: "50%" }}
         transition={{ duration, ease }}
-        style={{ position: "absolute", top: 0, bottom: 0, width: "50%", overflow: "hidden" }}
+        style={{ position: "absolute", top: 0, bottom: 0, width: panelWidth, overflow: "hidden" }}
       >
         {newRight}
       </motion.div>

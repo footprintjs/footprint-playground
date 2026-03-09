@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 interface RunButtonProps {
   isPlaying: boolean;
@@ -6,6 +7,9 @@ interface RunButtonProps {
 }
 
 export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
+  const isMobile = useIsMobile();
+  const size = isMobile ? 80 : 120;
+
   return (
     <div
       style={{
@@ -14,7 +18,7 @@ export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 16,
+        gap: isMobile ? 12 : 16,
       }}
     >
       <motion.button
@@ -22,8 +26,8 @@ export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         style={{
-          width: 120,
-          height: 120,
+          width: size,
+          height: size,
           borderRadius: "50%",
           border: "none",
           background: isPlaying
@@ -34,7 +38,7 @@ export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 40,
+          fontSize: isMobile ? 28 : 40,
           boxShadow: isPlaying
             ? "0 0 40px rgba(239, 68, 68, 0.4)"
             : "0 0 40px rgba(245, 158, 11, 0.3)",
@@ -46,7 +50,7 @@ export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
       <div style={{ textAlign: "center" }}>
         <div
           style={{
-            fontSize: 16,
+            fontSize: isMobile ? 14 : 16,
             fontWeight: 600,
             color: "var(--text-primary)",
           }}
@@ -55,14 +59,16 @@ export function RunButton({ isPlaying, onTogglePlay }: RunButtonProps) {
         </div>
         <div
           style={{
-            fontSize: 12,
+            fontSize: isMobile ? 11 : 12,
             color: "var(--text-muted)",
             marginTop: 4,
           }}
         >
           {isPlaying
-            ? "Click to pause"
-            : "Execute the flowchart and watch it come alive"}
+            ? "Tap to pause"
+            : isMobile
+              ? "Tap to run the pipeline"
+              : "Execute the flowchart and watch it come alive"}
         </div>
       </div>
     </div>

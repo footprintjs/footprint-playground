@@ -18,27 +18,28 @@ interface PhaseHeaderProps {
   currentPhase: TutorialPhase;
   tutorialName: string;
   onPhaseClick?: (phase: TutorialPhase) => void;
+  isMobile?: boolean;
 }
 
-export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseHeaderProps) {
+export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick, isMobile }: PhaseHeaderProps) {
   const currentIdx = phases.findIndex((p) => p.key === currentPhase);
   const { theme, toggle } = useTheme();
 
   return (
     <header
       style={{
-        padding: "12px 24px",
+        padding: isMobile ? "8px 12px" : "12px 24px",
         borderBottom: `2px solid ${phaseColors[currentPhase]}`,
         display: "flex",
         alignItems: "center",
-        gap: 20,
+        gap: isMobile ? 10 : 20,
         background: "var(--bg-secondary)",
       }}
     >
       {/* Logo */}
       <div
         style={{
-          fontSize: 18,
+          fontSize: isMobile ? 15 : 18,
           fontWeight: 700,
           background:
             "linear-gradient(135deg, var(--accent), var(--success))",
@@ -47,21 +48,21 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
           flexShrink: 0,
         }}
       >
-        FootPrint
+        {isMobile ? "FP" : "FootPrint"}
       </div>
 
       {/* Divider */}
       <div
         style={{
           width: 1,
-          height: 24,
+          height: isMobile ? 20 : 24,
           background: "var(--border)",
           flexShrink: 0,
         }}
       />
 
       {/* Phase stepper */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 2 : 4, flex: 1 }}>
         {phases.map((phase, idx) => {
           const isActive = phase.key === currentPhase;
           const isDone = idx < currentIdx;
@@ -79,8 +80,8 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "4px 12px",
+                  gap: isMobile ? 4 : 8,
+                  padding: isMobile ? "4px 8px" : "4px 12px",
                   borderRadius: 20,
                   background: isActive
                     ? `color-mix(in srgb, ${phaseColors[phase.key]} 15%, transparent)`
@@ -91,13 +92,13 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
               >
                 <div
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: isMobile ? 22 : 24,
+                    height: isMobile ? 22 : 24,
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 11,
+                    fontSize: isMobile ? 10 : 11,
                     fontWeight: 700,
                     background: isActive ? phaseColors[phase.key] : isDone ? "var(--text-muted)" : "var(--bg-tertiary)",
                     color: isActive || isDone ? "white" : "var(--text-muted)",
@@ -106,17 +107,19 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
                 >
                   {isDone ? "\u2713" : idx + 1}
                 </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: isActive ? 600 : 400,
-                    color,
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  {phase.label}
-                </span>
-                {isActive && (
+                {(!isMobile || isActive) && (
+                  <span
+                    style={{
+                      fontSize: isMobile ? 11 : 13,
+                      fontWeight: isActive ? 600 : 400,
+                      color,
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    {phase.label}
+                  </span>
+                )}
+                {isActive && !isMobile && (
                   <motion.div
                     layoutId="phase-dot"
                     style={{
@@ -133,10 +136,10 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
               {idx < phases.length - 1 && (
                 <div
                   style={{
-                    width: 32,
+                    width: isMobile ? 16 : 32,
                     height: 2,
                     background: idx < currentIdx ? "var(--text-muted)" : "var(--bg-tertiary)",
-                    margin: "0 4px",
+                    margin: isMobile ? "0 2px" : "0 4px",
                     borderRadius: 1,
                     transition: "background 0.3s ease",
                   }}
@@ -148,10 +151,12 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
       </div>
 
       {/* Tutorial name + theme toggle */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
-          {tutorialName}
-        </span>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, flexShrink: 0 }}>
+        {!isMobile && (
+          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+            {tutorialName}
+          </span>
+        )}
         <button
           onClick={toggle}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -159,13 +164,13 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick }: PhaseH
             background: "var(--bg-tertiary)",
             border: "1px solid var(--border)",
             borderRadius: 8,
-            width: 32,
-            height: 32,
+            width: isMobile ? 28 : 32,
+            height: isMobile ? 28 : 32,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            fontSize: 14,
+            fontSize: isMobile ? 12 : 14,
             transition: "all 0.2s ease",
           }}
         >

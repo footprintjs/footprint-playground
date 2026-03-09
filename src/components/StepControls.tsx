@@ -11,6 +11,7 @@ interface StepControlsProps {
   phaseStepCount: number;
   onPrev: () => void;
   onNext: () => void;
+  isMobile?: boolean;
 }
 
 const phaseColors: Record<TutorialPhase, string> = {
@@ -29,6 +30,7 @@ export function StepControls({
   phaseStepCount,
   onPrev,
   onNext,
+  isMobile,
 }: StepControlsProps) {
   const color = phaseColors[phase];
   const isFirst = currentStep === 0;
@@ -39,8 +41,8 @@ export function StepControls({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 12,
-        padding: "16px 24px",
+        gap: isMobile ? 8 : 12,
+        padding: isMobile ? "10px 12px" : "16px 24px",
         background: "var(--bg-secondary)",
         borderTop: `1px solid var(--border)`,
       }}
@@ -50,22 +52,24 @@ export function StepControls({
         <div style={{ flex: 1 }}>
           <div
             style={{
-              fontSize: 15,
+              fontSize: isMobile ? 13 : 15,
               fontWeight: 600,
               color: "var(--text-primary)",
             }}
           >
             {title}
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              marginTop: 2,
-            }}
-          >
-            {description}
-          </div>
+          {!isMobile && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                marginTop: 2,
+              }}
+            >
+              {description}
+            </div>
+          )}
         </div>
       </div>
 

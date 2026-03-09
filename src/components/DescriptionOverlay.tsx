@@ -4,14 +4,15 @@ interface DescriptionOverlayProps {
   description: string | undefined;
   visible: boolean;
   onDismiss: () => void;
+  isMobile?: boolean;
 }
 
 /**
  * Floating blurred card that shows stage or flowchart descriptions during build phase.
  * Single-line = individual stage description. Multi-line = full chart.description after build().
- * Click the card to dismiss.
+ * Click the card to dismiss. On mobile, appears as a bottom sheet.
  */
-export function DescriptionOverlay({ description, visible, onDismiss }: DescriptionOverlayProps) {
+export function DescriptionOverlay({ description, visible, onDismiss, isMobile }: DescriptionOverlayProps) {
   const isFullDescription = description?.includes("\n");
   const label = isFullDescription ? "chart.description" : "Stage Description";
 
@@ -19,12 +20,36 @@ export function DescriptionOverlay({ description, visible, onDismiss }: Descript
     <AnimatePresence>
       {visible && description && (
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+          initial={isMobile
+            ? { opacity: 0, y: 40 }
+            : { opacity: 0, y: 16, scale: 0.95 }
+          }
+          animate={isMobile
+            ? { opacity: 1, y: 0 }
+            : { opacity: 1, y: 0, scale: 1 }
+          }
+          exit={isMobile
+            ? { opacity: 0, y: 40 }
+            : { opacity: 0, y: -8, scale: 0.98 }
+          }
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           onClick={onDismiss}
-          style={{
+          style={isMobile ? {
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            padding: "16px 16px 20px",
+            background: "rgba(30, 30, 40, 0.85)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "14px 14px 0 0",
+            textAlign: "left",
+            boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.3)",
+            cursor: "pointer",
+          } : {
             position: "absolute",
             top: 24,
             right: 24,

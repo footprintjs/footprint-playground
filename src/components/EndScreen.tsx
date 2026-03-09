@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 export function EndScreen() {
+  const isMobile = useIsMobile();
   const features = [
     { icon: "\u{1F4CB}", label: "Causal Traces", desc: "Every stage writes are captured automatically" },
     { icon: "\u23EA", label: "Time-Travel", desc: "Replay to any point in execution" },
@@ -16,9 +18,10 @@ export function EndScreen() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: 40,
-        gap: 32,
+        padding: isMobile ? 20 : 40,
+        gap: isMobile ? 20 : 32,
         textAlign: "center",
+        overflow: "auto",
       }}
     >
       <motion.div
@@ -28,7 +31,7 @@ export function EndScreen() {
       >
         <div
           style={{
-            fontSize: 28,
+            fontSize: isMobile ? 20 : 28,
             fontWeight: 700,
             background: "linear-gradient(135deg, var(--accent), var(--success))",
             WebkitBackgroundClip: "text",
@@ -38,7 +41,7 @@ export function EndScreen() {
         >
           You built it, ran it, and debugged it.
         </div>
-        <div style={{ fontSize: 16, color: "var(--text-secondary)", maxWidth: 500 }}>
+        <div style={{ fontSize: isMobile ? 13 : 16, color: "var(--text-secondary)", maxWidth: 500 }}>
           All from a simple flowchart. FootPrint gives you full observability as a byproduct of execution.
         </div>
       </motion.div>
@@ -49,7 +52,7 @@ export function EndScreen() {
         transition={{ delay: 0.3, duration: 0.5 }}
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
           gap: 12,
           maxWidth: 480,
           width: "100%",

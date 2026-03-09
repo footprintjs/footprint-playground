@@ -133,3 +133,22 @@ pre {
 [data-theme="light"] .react-flow__background pattern circle {
   fill: #cbd5e1;
 }
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Wider scrollbar touch target */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  /* Ensure tap targets are at least 44px */
+  button {
+    min-height: 36px;
+  }
+}

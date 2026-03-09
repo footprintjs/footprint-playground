@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { motion } from "framer-motion";
 import { useTheme } from "../ThemeContext";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 interface CodePanelProps {
   code: string;
@@ -18,6 +19,7 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
   const decorationIds = useRef<string[]>([]);
   const { theme } = useTheme();
   const themesDefinedRef = useRef(false);
+  const isMobile = useIsMobile();
 
   // Switch Monaco theme when app theme changes
   useEffect(() => {
@@ -77,12 +79,12 @@ export function CodePanel({ code, highlightLines, newCodeRange }: CodePanelProps
         options={{
           readOnly: true,
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: isMobile ? 11 : 14,
           fontFamily: "'JetBrains Mono', monospace",
-          lineNumbers: "on",
+          lineNumbers: isMobile ? "off" : "on",
           scrollBeyondLastLine: false,
           wordWrap: "on",
-          padding: { top: 16, bottom: 16 },
+          padding: { top: isMobile ? 8 : 16, bottom: isMobile ? 8 : 16 },
           renderLineHighlight: "none",
           overviewRulerLanes: 0,
           hideCursorInOverviewRuler: true,

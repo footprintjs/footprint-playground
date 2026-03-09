@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import type { Node, Edge } from "@xyflow/react";
 import type { StageSnapshot } from "../tutorials/types";
 import { ObserveFlowchart } from "./ObserveFlowchart";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 interface ObservePanelProps {
   nodes: Node[];
@@ -24,6 +25,7 @@ export function ObservePanel({
   selectedIndex: externalIdx,
   onSelectIndex,
 }: ObservePanelProps) {
+  const isMobile = useIsMobile();
   const [internalIdx, setInternalIdx] = useState(0);
   const selectedIdx = externalIdx ?? internalIdx;
   const handleSelect = (idx: number) => {
@@ -57,12 +59,14 @@ export function ObservePanel({
             marginBottom: 8,
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+          <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "var(--text-primary)" }}>
             Time-Travel Debugger
           </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            Scrub to replay execution
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Scrub to replay execution
+            </span>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -173,22 +177,25 @@ function GanttChart({
   selectedIdx: number;
   onSelect: (idx: number) => void;
 }) {
+  const isMobile = useIsMobile();
   const totalWallTime = Math.max(
     ...snapshots.map((s) => s.startMs + s.durationMs)
   );
+  const labelWidth = isMobile ? 50 : 80;
+  const msWidth = isMobile ? 28 : 36;
 
   return (
     <div>
       <span
         style={{
-          fontSize: 11,
+          fontSize: isMobile ? 10 : 11,
           fontWeight: 600,
           color: "var(--text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
         }}
       >
-        Execution Timeline
+        {isMobile ? "Timeline" : "Execution Timeline"}
       </span>
       <div
         style={{
@@ -211,7 +218,7 @@ function GanttChart({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: isMobile ? 4 : 8,
                 cursor: "pointer",
                 opacity: isVisible ? 1 : 0.3,
                 transition: "opacity 0.3s ease",
@@ -219,14 +226,17 @@ function GanttChart({
             >
               <span
                 style={{
-                  width: 80,
-                  fontSize: 10,
+                  width: labelWidth,
+                  fontSize: isMobile ? 9 : 10,
                   color: isSelected
                     ? "var(--phase-observe)"
                     : "var(--text-muted)",
                   fontWeight: isSelected ? 600 : 400,
                   textAlign: "right",
                   flexShrink: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {snap.stageLabel}
@@ -234,7 +244,7 @@ function GanttChart({
               <div
                 style={{
                   flex: 1,
-                  height: 8,
+                  height: isMobile ? 6 : 8,
                   position: "relative",
                   background: "var(--bg-tertiary)",
                   borderRadius: 3,
@@ -266,10 +276,10 @@ function GanttChart({
               </div>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: isMobile ? 9 : 10,
                   color: "var(--text-muted)",
                   fontFamily: "'JetBrains Mono', monospace",
-                  width: 36,
+                  width: msWidth,
                   flexShrink: 0,
                 }}
               >
@@ -284,17 +294,17 @@ function GanttChart({
       <div
         style={{
           marginTop: 4,
-          marginLeft: 88,
-          marginRight: 44,
+          marginLeft: labelWidth + (isMobile ? 4 : 8),
+          marginRight: msWidth + (isMobile ? 4 : 8),
           display: "flex",
           justifyContent: "space-between",
-          fontSize: 9,
+          fontSize: isMobile ? 8 : 9,
           color: "var(--text-muted)",
           fontFamily: "'JetBrains Mono', monospace",
         }}
       >
         <span>0ms</span>
-        <span>{(totalWallTime / 2).toFixed(1)}ms</span>
+        {!isMobile && <span>{(totalWallTime / 2).toFixed(1)}ms</span>}
         <span>{totalWallTime.toFixed(1)}ms</span>
       </div>
     </div>
