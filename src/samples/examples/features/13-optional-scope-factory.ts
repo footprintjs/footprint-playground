@@ -17,7 +17,6 @@ import {
   FlowChartExecutor,
   ScopeFacade,
   NarrativeRecorder,
-  CombinedNarrativeBuilder,
 } from 'footprint';
 
 (async () => {
@@ -75,10 +74,6 @@ await executor2.run();
 
 console.log('  Result:', executor2.getSnapshot().sharedState.status);
 console.log('  Recorder captured', recorder.getStageData().size, 'stages');
-
-const combined = new CombinedNarrativeBuilder();
-const narrative2 = combined.build([], recorder);
-narrative2.forEach((line) => console.log(`    ${line}`));
 
 // ── Pattern 3: Typed ScopeFacade subclass ───────────────────────────
 // Use when you want type-safe getters/setters on your scope.

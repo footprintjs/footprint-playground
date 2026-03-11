@@ -13,17 +13,9 @@
  * Run:  npm run feature:break
  */
 
-import {
-  FlowChartBuilder,
-  FlowChartExecutor,
-  ScopeFacade,
-  NarrativeRecorder,
-  CombinedNarrativeBuilder,
-} from 'footprint';
+import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';
 
 (async () => {
-
-const recorder = new NarrativeRecorder({ id: 'break', detail: 'full' });
 
 // ── Scenario 1: Validation gate — stop pipeline on bad input ────────────
 
@@ -53,28 +45,15 @@ const validationChart = new FlowChartBuilder()
   })
   .build();
 
-const scopeFactory1 = (ctx: any, stageName: string) => {
-  const scope = new ScopeFacade(ctx, stageName);
-  scope.attachRecorder(recorder);
-  return scope;
-};
-
-const executor1 = new FlowChartExecutor(validationChart, scopeFactory1);
+const executor1 = new FlowChartExecutor(validationChart);
 await executor1.run();
 
-const narrative1 = new CombinedNarrativeBuilder().build(
-  executor1.getFlowNarrative(),
-  recorder,
-);
-
-narrative1.forEach((line) => console.log(`  ${line}`));
+executor1.getNarrative().forEach((line) => console.log(`  ${line}`));
 console.log('\n  ProcessPayment and SendConfirmation never ran.\n');
 
 // ── Scenario 2: Budget limit — stop when cost threshold is reached ──────
 
 console.log('=== Scenario 2: Budget Limit ===\n');
-
-const recorder2 = new NarrativeRecorder({ id: 'budget', detail: 'full' });
 
 const budgetChart = new FlowChartBuilder()
   .setEnableNarrative()
@@ -123,21 +102,10 @@ const budgetChart = new FlowChartBuilder()
   })
   .build();
 
-const scopeFactory2 = (ctx: any, stageName: string) => {
-  const scope = new ScopeFacade(ctx, stageName);
-  scope.attachRecorder(recorder2);
-  return scope;
-};
-
-const executor2 = new FlowChartExecutor(budgetChart, scopeFactory2);
+const executor2 = new FlowChartExecutor(budgetChart);
 await executor2.run();
 
-const narrative2 = new CombinedNarrativeBuilder().build(
-  executor2.getFlowNarrative(),
-  recorder2,
-);
-
-narrative2.forEach((line) => console.log(`  ${line}`));
+executor2.getNarrative().forEach((line) => console.log(`  ${line}`));
 console.log('\n  BuyItem4 never ran — budget of $100 reached at $125.\n');
 
 })().catch(console.error);

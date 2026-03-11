@@ -20,13 +20,8 @@ import {
   InputValidationError,
   extractErrorInfo,
   formatErrorInfo,
-  NarrativeRecorder,
-  CombinedNarrativeBuilder,
 } from 'footprint';
-import type { FlowRecorder, FlowErrorEvent, ScopeFactory } from 'footprint';
-
-const scopeFactory: ScopeFactory = (ctx, stageName, readOnly) =>
-  new ScopeFacade(ctx, stageName, readOnly);
+import type { FlowRecorder, FlowErrorEvent } from 'footprint';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A. Custom FlowRecorder with structured error observation
@@ -88,7 +83,7 @@ async function demoStructuredErrorRecorder() {
     },
   };
 
-  const executor = new FlowChartExecutor(chart, scopeFactory);
+  const executor = new FlowChartExecutor(chart);
   executor.attachFlowRecorder(errorObserver);
 
   try {
@@ -109,13 +104,6 @@ async function demoStructuredErrorRecorder() {
 async function demoNarrativeEnrichment() {
   console.log('\n=== B. Narrative Enrichment — Validation Issues in the Story ===\n');
 
-  const narrativeRecorder = new NarrativeRecorder();
-  const enrichedScopeFactory: ScopeFactory = (ctx, stageName, readOnly) => {
-    const scope = new ScopeFacade(ctx, stageName, readOnly);
-    scope.attachRecorder(narrativeRecorder);
-    return scope;
-  };
-
   const chart = flowChart('FetchData', async (scope: ScopeFacade) => {
     scope.setValue('payload', { name: 'Bob', age: -5, email: '' });
   })
@@ -127,10 +115,10 @@ async function demoNarrativeEnrichment() {
       ]);
     })
     .addFunction('Transform', async () => 'transformed')
+    .setEnableNarrative()
     .build();
 
-  const executor = new FlowChartExecutor(chart, enrichedScopeFactory);
-  executor.enableNarrative();
+  const executor = new FlowChartExecutor(chart);
 
   try {
     await executor.run();
@@ -138,18 +126,9 @@ async function demoNarrativeEnrichment() {
     // Expected
   }
 
-  // Flow narrative now includes field-level details
-  const flowNarrative = executor.getFlowNarrative();
-  console.log('  Flow narrative:');
-  for (const sentence of flowNarrative) {
-    console.log(`    ${sentence}`);
-  }
-
-  // Combined narrative weaves data + flow
-  const builder = new CombinedNarrativeBuilder();
-  const combined = builder.build(flowNarrative, narrativeRecorder);
-  console.log('\n  Combined narrative:');
-  for (const line of combined) {
+  // getNarrative() automatically includes field-level validation details
+  console.log('  Combined narrative:');
+  for (const line of executor.getNarrative()) {
     console.log(`    ${line}`);
   }
 }

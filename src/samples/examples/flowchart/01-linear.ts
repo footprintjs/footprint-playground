@@ -8,13 +8,7 @@
  * In the playground, edit the INPUT panel to change the user data.
  */
 
-import {
-  flowChart,
-  FlowChartExecutor,
-  ScopeFacade,
-  NarrativeRecorder,
-  CombinedNarrativeBuilder,
-} from 'footprint';
+import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';
 
 (async () => {
 
@@ -79,24 +73,11 @@ const chart = flowChart('FetchUser', fetchUser)
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
-const recorder = new NarrativeRecorder({ id: 'linear', detail: 'full' });
-
-const scopeFactory = (ctx: any, stageName: string, readOnly?: unknown) => {
-  const scope = new ScopeFacade(ctx, stageName, readOnly);
-  scope.attachRecorder(recorder);
-  return scope;
-};
-
-const executor = new FlowChartExecutor(chart, scopeFactory);
+const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
 
-const narrative = new CombinedNarrativeBuilder().build(
-  executor.getFlowNarrative(),
-  recorder,
-);
-
 console.log('=== Linear Pipeline ===\n');
-narrative.forEach((line) => console.log(`  ${line}`));
+executor.getNarrative().forEach((line) => console.log(`  ${line}`));
 console.log('\n--- Email Log ---');
 emailLog.forEach((line) => console.log(`  ${line}`));
 })().catch(console.error);

@@ -9,14 +9,7 @@
  *   Subflow: ValidateCard → ChargeCard → SendReceipt
  */
 
-import {
-  flowChart,
-  FlowChartBuilder,
-  FlowChartExecutor,
-  ScopeFacade,
-  NarrativeRecorder,
-  CombinedNarrativeBuilder,
-} from 'footprint';
+import { flowChart, FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';
 
 (async () => {
 
@@ -121,22 +114,9 @@ const chart = new FlowChartBuilder()
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
-const recorder = new NarrativeRecorder({ id: 'subflow', detail: 'full' });
-
-const scopeFactory = (ctx: any, stageName: string) => {
-  const scope = new ScopeFacade(ctx, stageName);
-  scope.attachRecorder(recorder);
-  return scope;
-};
-
-const executor = new FlowChartExecutor(chart, scopeFactory);
+const executor = new FlowChartExecutor(chart);
 await executor.run();
 
-const narrative = new CombinedNarrativeBuilder().build(
-  executor.getFlowNarrative(),
-  recorder,
-);
-
 console.log('\n=== Subflow (Nested Pipeline) ===\n');
-narrative.forEach((line) => console.log(`  ${line}`));
+executor.getNarrative().forEach((line) => console.log(`  ${line}`));
 })().catch(console.error);

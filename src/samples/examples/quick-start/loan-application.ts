@@ -4,20 +4,13 @@
  * A complete loan underwriting pipeline that demonstrates:
  * - Reading input via getArgs() (readonly, frozen, shared across all stages)
  * - Writing computed values via setValue() (stage-produced data)
- * - Auto-generated narrative trace
+ * - Auto-generated narrative trace (setEnableNarrative + getNarrative)
  * - Decider-based branching
- * - Combined narrative output for LLM consumption
  *
  * In the playground, edit the INPUT panel (bottom-left) to change applicant data.
  */
 
-import {
-  FlowChartBuilder,
-  FlowChartExecutor,
-  ScopeFacade,
-  NarrativeRecorder,
-  CombinedNarrativeBuilder,
-} from 'footprint';
+import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';
 
 (async () => {
 
@@ -178,22 +171,10 @@ const chart = new FlowChartBuilder()
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
-const recorder = new NarrativeRecorder({ id: 'loan', detail: 'full' });
-
-const scopeFactory = (ctx: any, stageName: string, readOnly?: unknown) => {
-  const scope = new ScopeFacade(ctx, stageName, readOnly);
-  scope.attachRecorder(recorder);
-  return scope;
-};
-
-const executor = new FlowChartExecutor(chart, scopeFactory);
+const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
 
-const flowNarrative = executor.getFlowNarrative();
-const combined = new CombinedNarrativeBuilder();
-const narrative = combined.build(flowNarrative, recorder);
-
 console.log('=== Loan Application — Causal Trace ===\n');
-narrative.forEach((line) => console.log(`  ${line}`));
+executor.getNarrative().forEach((line) => console.log(`  ${line}`));
 console.log();
 })().catch(console.error);
