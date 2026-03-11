@@ -28,6 +28,19 @@ import { SpecView } from "./SpecView";
 
 const nodeTypes: NodeTypes = { stage: StageNode as any };
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < breakpoint
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ─── Shared hook: encapsulates subflow viz derivation, overlay, time-travel ──
 // Both ExplainableSection and AICompatibleSection use this to get the same
 // behavior — parent and subflow charts are treated identically.
@@ -123,10 +136,13 @@ function useFlowchartData(
 type LeftTab = "code" | "spec" | "flowchart";
 type RightTab = "result" | "trace" | "narrative";
 
+type MobilePanel = "code" | "output";
+
 export function LiveRunner() {
   const { theme, toggle } = useTheme();
   const { sampleId } = useParams<{ sampleId: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Resolve sample from URL param, fallback to first sample
   const resolvedSample = samples.find((s) => s.id === sampleId) ?? samples[0];
@@ -140,6 +156,7 @@ export function LiveRunner() {
   const [inputJson, setInputJson] = useState(resolvedSample.defaultInput ?? "");
   const [inputOpen, setInputOpen] = useState(!!resolvedSample.defaultInput);
   const [showInputModal, setShowInputModal] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("code");
 
   const selectedId = resolvedSample.id;
   const selectedSample = resolvedSample;
@@ -162,6 +179,7 @@ export function LiveRunner() {
   const handleRun = useCallback(async () => {
     setRunning(true);
     setResult(null);
+    if (isMobile) setMobilePanel("output");
     try {
       const res = await executeCode(code, inputJson || undefined);
       setResult(res);
@@ -177,7 +195,7 @@ export function LiveRunner() {
     } finally {
       setRunning(false);
     }
-  }, [code, inputJson]);
+  }, [code, inputJson, isMobile]);
 
   // Derive visualization snapshots for time-travel
   const vizSnapshots = useMemo(() => {
@@ -213,14 +231,24 @@ export function LiveRunner() {
         selectedId={selectedId}
         description={selectedSample?.description}
         theme={theme}
+        isMobile={isMobile}
         onSampleChange={handleSampleChange}
         onToggleTheme={toggle}
       />
 
+      {/* Mobile panel toggle */}
+      {isMobile && (
+        <MobilePanelToggle
+          active={mobilePanel}
+          onChange={setMobilePanel}
+          hasResult={!!result}
+        />
+      )}
+
       {/* Main content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* === Left Panel (collapsible) === */}
-        {leftCollapsed ? (
+        {(!isMobile && leftCollapsed) ? (
           /* Collapsed: thin strip with expand button */
           <div
             style={{
@@ -267,13 +295,13 @@ export function LiveRunner() {
               Code
             </div>
           </div>
-        ) : (
+        ) : (!isMobile || mobilePanel === "code") ? (
           /* Expanded: full left panel */
           <div
             style={{
-              width: "45%",
-              borderRight: "1px solid var(--border)",
-              display: "flex",
+              width: isMobile ? "100%" : "45%",
+              borderRight: isMobile ? "none" : "1px solid var(--border)",
+              display: isMobile && mobilePanel !== "code" ? "none" : "flex",
               flexDirection: "column",
             }}
           >
@@ -282,7 +310,7 @@ export function LiveRunner() {
                 { id: "code", label: "Code" },
                 {
                   id: "spec",
-                  label: "Flow Definition",
+                  label: isMobile ? "Spec" : "Flow Definition",
                   disabled: !result?.buildTime,
                 },
                 {
@@ -294,6 +322,25 @@ export function LiveRunner() {
               active={leftTab}
               onChange={(t) => setLeftTab(t as LeftTab)}
               trailing={
+                isMobile ? (
+                  <button
+                    onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
+                    disabled={running}
+                    style={{
+                      background: "var(--accent)",
+                      border: "none",
+                      color: "white",
+                      borderRadius: 6,
+                      padding: "6px 14px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      marginRight: 8,
+                    }}
+                  >
+                    {running ? "..." : "Run"}
+                  </button>
+                ) : (
                 <button
                   onClick={() => setLeftCollapsed(true)}
                   title="Collapse code panel"
@@ -310,6 +357,7 @@ export function LiveRunner() {
                 >
                   &#9664;
                 </button>
+                )
               }
             />
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -450,13 +498,13 @@ export function LiveRunner() {
               )}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* === Right Panel === */}
         <div
           style={{
             flex: 1,
-            display: "flex",
+            display: isMobile && mobilePanel !== "output" ? "none" : "flex",
             flexDirection: "column",
             overflow: "hidden",
           }}
@@ -650,12 +698,14 @@ function Toolbar({
   selectedId,
   description,
   theme,
+  isMobile,
   onSampleChange,
   onToggleTheme,
 }: {
   selectedId: string;
   description?: string;
   theme: string;
+  isMobile: boolean;
   onSampleChange: (id: string) => void;
   onToggleTheme: () => void;
 }) {
@@ -664,8 +714,8 @@ function Toolbar({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 12,
-        padding: "8px 16px",
+        gap: isMobile ? 8 : 12,
+        padding: isMobile ? "8px 10px" : "8px 16px",
         borderBottom: "1px solid var(--border)",
         background: "var(--bg-secondary)",
         flexShrink: 0,
@@ -674,9 +724,10 @@ function Toolbar({
       <div
         style={{
           fontWeight: 700,
-          fontSize: 16,
+          fontSize: isMobile ? 14 : 16,
           color: "var(--accent)",
           letterSpacing: "-0.5px",
+          flexShrink: 0,
         }}
       >
         FootPrint
@@ -691,9 +742,11 @@ function Toolbar({
           border: "1px solid var(--border)",
           borderRadius: 6,
           padding: "6px 10px",
-          fontSize: 13,
+          fontSize: isMobile ? 12 : 13,
           cursor: "pointer",
           outline: "none",
+          flex: isMobile ? 1 : undefined,
+          minWidth: 0,
         }}
       >
         {(() => {
@@ -718,29 +771,33 @@ function Toolbar({
         })()}
       </select>
 
-      <div
-        style={{
-          flex: 1,
-          fontSize: 12,
-          color: "var(--text-muted)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {description}
-      </div>
+      {!isMobile && (
+        <div
+          style={{
+            flex: 1,
+            fontSize: 12,
+            color: "var(--text-muted)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {description}
+        </div>
+      )}
 
-      <Link
-        to="/"
-        style={{
-          fontSize: 12,
-          color: "var(--text-muted)",
-          textDecoration: "none",
-        }}
-      >
-        How It Works
-      </Link>
+      {!isMobile && (
+        <Link
+          to="/"
+          style={{
+            fontSize: 12,
+            color: "var(--text-muted)",
+            textDecoration: "none",
+          }}
+        >
+          How It Works
+        </Link>
+      )}
 
       <button
         onClick={onToggleTheme}
@@ -754,6 +811,49 @@ function Toolbar({
       >
         {theme === "dark" ? "\u2600\uFE0F" : "\uD83C\uDF19"}
       </button>
+    </div>
+  );
+}
+
+function MobilePanelToggle({
+  active,
+  onChange,
+  hasResult,
+}: {
+  active: MobilePanel;
+  onChange: (panel: MobilePanel) => void;
+  hasResult: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--bg-secondary)",
+        flexShrink: 0,
+      }}
+    >
+      {(["code", "output"] as const).map((panel) => (
+        <button
+          key={panel}
+          onClick={() => onChange(panel)}
+          style={{
+            flex: 1,
+            padding: "10px 0",
+            border: "none",
+            borderBottom: active === panel ? "2px solid var(--accent)" : "2px solid transparent",
+            background: "transparent",
+            color: active === panel ? "var(--accent)" : "var(--text-muted)",
+            fontSize: 13,
+            fontWeight: active === panel ? 600 : 400,
+            cursor: "pointer",
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          {panel === "code" ? "Code" : hasResult ? "Output" : "Run"}
+        </button>
+      ))}
     </div>
   );
 }
