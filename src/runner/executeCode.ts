@@ -1,4 +1,4 @@
-import * as footprint from "footprint";
+import * as footprint from "footprintjs";
 import { transform } from "sucrase";
 import { z } from "zod";
 
