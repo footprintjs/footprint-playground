@@ -136,7 +136,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
   cleaned = cleaned.replace(/\}\)\(\)(?:\.catch\(console\.error\))?;\s*$/, "");
 
   // Remove async main() pattern: async function main() { ... } main().catch(console.error);
-  cleaned = cleaned.replace(/^async\s+function\s+main\s*\(\)\s*\{\s*\n?/, "");
+  cleaned = cleaned.replace(/^async\s+function\s+main\s*\(\)\s*\{\s*\n?/m, "");
   cleaned = cleaned.replace(/\}\s*\n*main\(\)\.catch\(console\.error\);\s*$/, "");
 
   // Transform TypeScript → JavaScript (strips type annotations, `as` casts, etc.)

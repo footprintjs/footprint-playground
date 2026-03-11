@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import {
   ReactFlow,
@@ -18,46 +18,53 @@ import {
 } from "../runner/executeCode";
 import {
   specToReactFlow,
+  StageNode,
   type ExecutionOverlay,
-} from "../runner/specToReactFlow";
-import { StageNodeComponent } from "./StageNode";
+} from "footprint-explainable-ui/flowchart";
 import { SpecView } from "./SpecView";
 
-const nodeTypes: NodeTypes = { stage: StageNodeComponent as any };
+const nodeTypes: NodeTypes = { stage: StageNode as any };
 
 type LeftTab = "code" | "spec" | "flowchart";
-type RightTab = "result" | "explainable" | "ai-compatible";
+type RightTab = "result" | "trace" | "narrative";
 
 export function LiveRunner() {
   const { theme, toggle } = useTheme();
-  const [selectedId, setSelectedId] = useState(samples[0].id);
-  const [code, setCode] = useState(samples[0].code);
+  const { sampleId } = useParams<{ sampleId: string }>();
+  const navigate = useNavigate();
+
+  // Resolve sample from URL param, fallback to first sample
+  const resolvedSample = samples.find((s) => s.id === sampleId) ?? samples[0];
+
+  const [code, setCode] = useState(resolvedSample.code);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [running, setRunning] = useState(false);
   const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
   const [rightTab, setRightTab] = useState<RightTab>("result");
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [inputJson, setInputJson] = useState(samples[0].defaultInput ?? "");
-  const [inputOpen, setInputOpen] = useState(!!samples[0].defaultInput);
+  const [inputJson, setInputJson] = useState(resolvedSample.defaultInput ?? "");
+  const [inputOpen, setInputOpen] = useState(!!resolvedSample.defaultInput);
   const [showInputModal, setShowInputModal] = useState(false);
 
-  const selectedSample = samples.find((s) => s.id === selectedId);
+  const selectedId = resolvedSample.id;
+  const selectedSample = resolvedSample;
   const hasDefaultInput = !!selectedSample?.defaultInput;
 
+  // Sync state when URL param changes
+  useEffect(() => {
+    setCode(resolvedSample.code);
+    setInputJson(resolvedSample.defaultInput ?? "");
+    setInputOpen(!!resolvedSample.defaultInput);
+    setResult(null);
+    setSnapshotIdx(0);
+    setLeftTab("code");
+    setRightTab("result" as RightTab);
+  }, [resolvedSample.id]);
+
   const handleSampleChange = useCallback((id: string) => {
-    const sample = samples.find((s) => s.id === id);
-    if (sample) {
-      setSelectedId(id);
-      setCode(sample.code);
-      setInputJson(sample.defaultInput ?? "");
-      setInputOpen(!!sample.defaultInput);
-      setResult(null);
-      setSnapshotIdx(0);
-      setLeftTab("code");
-      setRightTab("result");
-    }
-  }, []);
+    navigate(`/samples/${id}`);
+  }, [navigate]);
 
   const handleRun = useCallback(async () => {
     setRunning(true);
@@ -66,7 +73,7 @@ export function LiveRunner() {
     try {
       const res = await executeCode(code, inputJson || undefined);
       setResult(res);
-      setRightTab("result");
+      setRightTab("result" as RightTab);
     } catch (e: unknown) {
       setResult({
         snapshot: null,
@@ -216,7 +223,7 @@ export function LiveRunner() {
                 { id: "code", label: "Code" },
                 {
                   id: "spec",
-                  label: "Blueprint",
+                  label: "Flow Definition",
                   disabled: !result?.buildTime,
                 },
                 {
@@ -492,13 +499,13 @@ export function LiveRunner() {
                 tabs={[
                   { id: "result", label: "Result" },
                   {
-                    id: "explainable",
-                    label: "Explainable",
+                    id: "trace",
+                    label: "Self-Explaining Trace",
                     disabled: !overlayFlowData && !vizSnapshots,
                   },
                   {
-                    id: "ai-compatible",
-                    label: "AI-Compatible",
+                    id: "narrative",
+                    label: "LLM Narrative",
                     disabled: result.narrative.length === 0,
                   },
                 ]}
@@ -509,7 +516,7 @@ export function LiveRunner() {
               <div style={{ flex: 1, overflow: "hidden" }}>
                 {rightTab === "result" && <ResultSection result={result} />}
 
-                {rightTab === "explainable" && (
+                {rightTab === "trace" && (
                   <ExplainableSection
                     overlayFlowData={overlayFlowData}
                     vizSnapshots={vizSnapshots}
@@ -523,7 +530,7 @@ export function LiveRunner() {
                   />
                 )}
 
-                {rightTab === "ai-compatible" && (
+                {rightTab === "narrative" && (
                   <AICompatibleSection
                     narrative={result.narrative}
                     overlayFlowData={overlayFlowData}
@@ -555,7 +562,7 @@ export function LiveRunner() {
               try {
                 const res = await executeCode(code, json || undefined);
                 setResult(res);
-                setRightTab("result");
+                setRightTab("result" as RightTab);
               } catch (e: unknown) {
                 setResult({
                   snapshot: null,
@@ -629,11 +636,26 @@ function Toolbar({
           outline: "none",
         }}
       >
-        {samples.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.category}: {s.name}
-          </option>
-        ))}
+        {(() => {
+          const groups: { category: string; items: typeof samples }[] = [];
+          for (const s of samples) {
+            const last = groups[groups.length - 1];
+            if (last && last.category === s.category) {
+              last.items.push(s);
+            } else {
+              groups.push({ category: s.category, items: [s] });
+            }
+          }
+          return groups.map((g) => (
+            <optgroup key={g.category} label={g.category}>
+              {g.items.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </optgroup>
+          ));
+        })()}
       </select>
 
       <div

@@ -8,9 +8,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { Node, Edge } from "@xyflow/react";
-import { StageNodeComponent } from "./StageNode";
+import { StageNode } from "footprint-explainable-ui/flowchart";
 
-const nodeTypes = { stage: StageNodeComponent };
+const nodeTypes = { stage: StageNode };
 
 interface ExecuteFlowchartProps {
   nodes: Node[];

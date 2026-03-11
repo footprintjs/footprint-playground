@@ -9,9 +9,9 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { Node, Edge } from "@xyflow/react";
 import type { StageSnapshot } from "../tutorials/types";
-import { StageNodeComponent } from "./StageNode";
+import { StageNode } from "footprint-explainable-ui/flowchart";
 
-const nodeTypes = { stage: StageNodeComponent };
+const nodeTypes = { stage: StageNode };
 
 interface ObserveFlowchartProps {
   /** All nodes in the completed flowchart (positions/edges) */

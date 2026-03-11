@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { samples } from "../samples/catalog";
 
 export function EndScreen() {
   const isMobile = useIsMobile();
@@ -91,7 +92,7 @@ export function EndScreen() {
         style={{ display: "flex", gap: 12 }}
       >
         <Link
-          to="/samples"
+          to={`/samples/${samples[0].id}`}
           style={{
             padding: "12px 28px",
             background: "var(--accent)",

@@ -22,6 +22,20 @@
   --node-text: #f0ece4;
   --shadow-node: rgba(0, 0, 0, 0.4);
 
+  /* Bridge to explainable-ui library --fp-* variables */
+  --fp-color-primary: var(--accent);
+  --fp-color-success: var(--success);
+  --fp-color-error: var(--error);
+  --fp-color-warning: var(--warning);
+  --fp-bg-primary: var(--bg-primary);
+  --fp-bg-secondary: var(--bg-secondary);
+  --fp-bg-tertiary: var(--bg-tertiary);
+  --fp-text-primary: var(--text-primary);
+  --fp-text-secondary: var(--text-secondary);
+  --fp-text-muted: var(--text-muted);
+  --fp-border: var(--border);
+  --fp-radius: 12px;
+
   /* Phase colors */
   --phase-build: #7c6cf0;
   --phase-build-dim: rgba(124, 108, 240, 0.06);
@@ -68,6 +82,20 @@
   --phase-observe: #2d9d5a;
   --phase-observe-dim: rgba(45, 157, 90, 0.06);
   --phase-observe-border: rgba(45, 157, 90, 0.2);
+
+  /* Bridge to explainable-ui library --fp-* variables (light mode) */
+  --fp-color-primary: var(--accent);
+  --fp-color-success: var(--success);
+  --fp-color-error: var(--error);
+  --fp-color-warning: var(--warning);
+  --fp-bg-primary: var(--bg-primary);
+  --fp-bg-secondary: var(--bg-secondary);
+  --fp-bg-tertiary: var(--bg-tertiary);
+  --fp-text-primary: var(--text-primary);
+  --fp-text-secondary: var(--text-secondary);
+  --fp-text-muted: var(--text-muted);
+  --fp-border: var(--border);
+  --fp-radius: 12px;
 
   color: var(--text-primary);
   background: var(--bg-primary);
@@ -159,4 +187,15 @@ pre {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Animations required by explainable-ui StageNode */
+@keyframes fp-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 0; }
+}
+
+@keyframes fp-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
