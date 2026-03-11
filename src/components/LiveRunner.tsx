@@ -20,13 +20,105 @@ import {
   StageNode,
   SubflowBreadcrumb,
   useSubflowNavigation,
+  specToReactFlow,
   type ExecutionOverlay,
   type SpecNode,
-  type SubflowNavigation,
 } from "footprint-explainable-ui/flowchart";
 import { SpecView } from "./SpecView";
 
 const nodeTypes: NodeTypes = { stage: StageNode as any };
+
+// ─── Shared hook: encapsulates subflow viz derivation, overlay, time-travel ──
+// Both ExplainableSection and AICompatibleSection use this to get the same
+// behavior — parent and subflow charts are treated identically.
+
+function useFlowchartData(
+  spec: SpecNode | null,
+  vizSnapshots: any[] | null,
+) {
+  const [snapshotIdx, setSnapshotIdx] = useState(0);
+
+  // Navigation state only — no overlay passed (eliminates one-frame ref lag)
+  const subflowNav = useSubflowNavigation(spec);
+
+  // Derive subflow vizSnapshots when drilled into a subflow
+  const subflowVizSnapshots = useMemo(() => {
+    if (!subflowNav.isInSubflow || !vizSnapshots) return null;
+    const subflowNodeName = subflowNav.currentSubflowNodeName;
+    if (!subflowNodeName) return null;
+    const parentSnap = vizSnapshots.find((s: any) => s.stageLabel === subflowNodeName);
+    const sfResult = parentSnap?.memory?.subflowResult as any;
+    const tc = sfResult?.treeContext;
+    if (!tc?.stageContexts) return null;
+    try {
+      const snaps = toVisualizationSnapshots({
+        sharedState: tc.globalContext,
+        executionTree: tc.stageContexts,
+        commitLog: tc.history ?? [],
+      } as any);
+      // Strip builder's "subflowId/" prefix so stageLabels match flowchart node IDs
+      const prefix = sfResult.subflowId ? `${sfResult.subflowId}/` : null;
+      if (prefix) {
+        for (const snap of snaps) {
+          if (snap.stageLabel.startsWith(prefix)) snap.stageLabel = snap.stageLabel.slice(prefix.length);
+          if (snap.stageName.startsWith(prefix)) snap.stageName = snap.stageName.slice(prefix.length);
+          if (snap.narrative) snap.narrative = snap.narrative.replaceAll(prefix, '');
+        }
+      }
+      return snaps;
+    } catch {
+      return null;
+    }
+  }, [vizSnapshots, subflowNav.isInSubflow, subflowNav.currentSubflowNodeName]);
+
+  // Active data — switches between parent and subflow
+  const activeSnapshots = subflowVizSnapshots ?? vizSnapshots;
+  const currentSnap = activeSnapshots?.[snapshotIdx];
+
+  // Execution overlay — computed synchronously, no ref lag
+  const executionOverlay = useMemo<ExecutionOverlay | undefined>(() => {
+    if (!activeSnapshots) return undefined;
+    const executionOrder = activeSnapshots
+      .slice(0, snapshotIdx + 1)
+      .map((s: any) => s.stageLabel as string);
+    const doneStages = new Set(
+      activeSnapshots.slice(0, snapshotIdx).map((s: any) => s.stageLabel)
+    );
+    const activeStage = activeSnapshots[snapshotIdx]?.stageLabel ?? null;
+    const executedStages = new Set([...doneStages]);
+    if (activeStage) executedStages.add(activeStage);
+    return { doneStages, activeStage, executedStages, executionOrder };
+  }, [activeSnapshots, snapshotIdx]);
+
+  // Derive nodes/edges directly with the correct overlay — no ref indirection
+  const currentSpec = subflowNav.breadcrumbs.length > 0
+    ? subflowNav.breadcrumbs[subflowNav.breadcrumbs.length - 1].spec
+    : null;
+
+  const flowData = useMemo(() => {
+    if (!currentSpec || !activeSnapshots) return null;
+    const { nodes, edges } = specToReactFlow(currentSpec, executionOverlay);
+    return { nodes, edges };
+  }, [currentSpec, activeSnapshots, executionOverlay]);
+
+  // Reset snapshot index when drilling in/out of subflow
+  const prevIsInSubflow = useRef(false);
+  useEffect(() => {
+    if (subflowNav.isInSubflow !== prevIsInSubflow.current) {
+      prevIsInSubflow.current = subflowNav.isInSubflow;
+      setSnapshotIdx(0);
+    }
+  }, [subflowNav.isInSubflow]);
+
+  return {
+    subflowNav,
+    activeSnapshots,
+    snapshotIdx,
+    setSnapshotIdx,
+    currentSnap,
+    flowData,
+  };
+}
 
 type LeftTab = "code" | "spec" | "flowchart";
 type RightTab = "result" | "trace" | "narrative";
@@ -42,7 +134,6 @@ export function LiveRunner() {
   const [code, setCode] = useState(resolvedSample.code);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [running, setRunning] = useState(false);
-  const [snapshotIdx, setSnapshotIdx] = useState(0);
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
   const [rightTab, setRightTab] = useState<RightTab>("result");
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -60,7 +151,6 @@ export function LiveRunner() {
     setInputJson(resolvedSample.defaultInput ?? "");
     setInputOpen(!!resolvedSample.defaultInput);
     setResult(null);
-    setSnapshotIdx(0);
     setLeftTab("code");
     setRightTab("result" as RightTab);
   }, [resolvedSample.id]);
@@ -72,7 +162,6 @@ export function LiveRunner() {
   const handleRun = useCallback(async () => {
     setRunning(true);
     setResult(null);
-    setSnapshotIdx(0);
     try {
       const res = await executeCode(code, inputJson || undefined);
       setResult(res);
@@ -100,8 +189,6 @@ export function LiveRunner() {
     }
   }, [result]);
 
-  const currentSnap = vizSnapshots?.[snapshotIdx];
-
   // Build-time flowchart with subflow drill-down (plain gray — no execution overlay)
   const buildTimeSpec = (result?.buildTime?.spec as unknown as SpecNode) ?? null;
   const buildSubflow = useSubflowNavigation(buildTimeSpec);
@@ -109,29 +196,8 @@ export function LiveRunner() {
     ? { nodes: buildSubflow.nodes, edges: buildSubflow.edges }
     : null;
 
-  // Execution overlay — derived from vizSnapshots + snapshotIdx
-  // IMPORTANT: We use stageLabel (= runtime node.name = human-readable stage name)
-  // NOT stageName (= runtime node.id = runId) because flowchart node IDs come from
-  // the spec tree's node.name, which matches stageLabel.
-  const executionOverlay = useMemo<ExecutionOverlay | undefined>(() => {
-    if (!vizSnapshots) return undefined;
-    const executionOrder = vizSnapshots
-      .slice(0, snapshotIdx + 1)
-      .map((s: any) => s.stageLabel as string);
-    const doneStages = new Set(
-      vizSnapshots.slice(0, snapshotIdx).map((s: any) => s.stageLabel)
-    );
-    const activeStage = vizSnapshots[snapshotIdx]?.stageLabel ?? null;
-    const executedStages = new Set([...doneStages]);
-    if (activeStage) executedStages.add(activeStage);
-    return { doneStages, activeStage, executedStages, executionOrder };
-  }, [vizSnapshots, snapshotIdx]);
-
-  // Overlay flowchart with subflow drill-down (for Explainable/Narrative tabs)
-  const overlaySubflow = useSubflowNavigation(buildTimeSpec, executionOverlay);
-  const overlayFlowData = buildTimeSpec && vizSnapshots
-    ? { nodes: overlaySubflow.nodes, edges: overlaySubflow.edges }
-    : null;
+  // (Subflow state, overlay, time-travel all managed inside ExplainableSection/AICompatibleSection
+  // via useFlowchartData hook — LiveRunner just passes spec + vizSnapshots)
 
   return (
     <div
@@ -501,7 +567,7 @@ export function LiveRunner() {
                   {
                     id: "trace",
                     label: "Self-Explaining Trace",
-                    disabled: !overlayFlowData && !vizSnapshots,
+                    disabled: !buildTimeSpec && !vizSnapshots,
                   },
                   {
                     id: "narrative",
@@ -518,28 +584,21 @@ export function LiveRunner() {
 
                 {rightTab === "trace" && (
                   <ExplainableSection
-                    overlayFlowData={overlayFlowData}
-                    subflowNav={overlaySubflow}
+                    spec={buildTimeSpec}
                     vizSnapshots={vizSnapshots}
-                    snapshotIdx={snapshotIdx}
-                    currentSnap={currentSnap}
                     stageDescriptions={
                       result.buildTime?.stageDescriptions ?? {}
                     }
                     theme={theme}
-                    onSnapshotChange={setSnapshotIdx}
                   />
                 )}
 
                 {rightTab === "narrative" && (
                   <AICompatibleSection
                     narrative={result.narrative}
-                    overlayFlowData={overlayFlowData}
-                    subflowNav={overlaySubflow}
+                    spec={buildTimeSpec}
                     vizSnapshots={vizSnapshots}
-                    snapshotIdx={snapshotIdx}
                     theme={theme}
-                    onSnapshotChange={setSnapshotIdx}
                   />
                 )}
               </div>
@@ -560,7 +619,6 @@ export function LiveRunner() {
             setTimeout(async () => {
               setRunning(true);
               setResult(null);
-              setSnapshotIdx(0);
               try {
                 const res = await executeCode(code, json || undefined);
                 setResult(res);
@@ -1363,47 +1421,46 @@ function formatValue(v: unknown): string {
 type DetailTab = "stage" | "diff" | "semantic";
 
 function ExplainableSection({
-  overlayFlowData,
-  subflowNav,
+  spec,
   vizSnapshots,
-  snapshotIdx,
-  currentSnap,
   stageDescriptions,
   theme,
-  onSnapshotChange,
 }: {
-  overlayFlowData: { nodes: any[]; edges: any[] } | null;
-  subflowNav: SubflowNavigation;
+  spec: SpecNode | null;
   vizSnapshots: any[] | null;
-  snapshotIdx: number;
-  currentSnap: any;
   stageDescriptions: Record<string, string>;
   theme: string;
-  onSnapshotChange: (idx: number) => void;
 }) {
+  const {
+    subflowNav,
+    activeSnapshots,
+    snapshotIdx,
+    setSnapshotIdx: onSnapshotChange,
+    currentSnap,
+    flowData: overlayFlowData,
+  } = useFlowchartData(spec, vizSnapshots);
+
   const [detailOpen, setDetailOpen] = useState(true);
   const [detailTab, setDetailTab] = useState<DetailTab>("stage");
   const [ganttOpen, setGanttOpen] = useState(true);
   const [playing, setPlaying] = useState(false);
   const playRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const total = vizSnapshots?.length ?? 0;
+  const total = activeSnapshots?.length ?? 0;
   const canPrev = snapshotIdx > 0;
   const canNext = snapshotIdx < total - 1;
 
   // Auto-advance during playback — uses actual stage durations from Gantt
   useEffect(() => {
-    if (!playing || !vizSnapshots) return;
+    if (!playing || !activeSnapshots) return;
     if (snapshotIdx >= total - 1) {
       setPlaying(false);
       return;
     }
-    // Use the current stage's duration (clamped to a reasonable playback range)
-    const stageDur = vizSnapshots[snapshotIdx]?.durationMs ?? 1;
-    const totalDur = vizSnapshots.reduce(
+    const stageDur = activeSnapshots[snapshotIdx]?.durationMs ?? 1;
+    const totalDur = activeSnapshots.reduce(
       (sum: number, s: any) => sum + (s.durationMs ?? 1),
       0
     );
-    // Normalize: map real durations to 300ms–1500ms playback range
     const normalized = totalDur > 0
       ? 300 + (stageDur / totalDur) * 1200
       : 600;
@@ -1413,27 +1470,25 @@ function ExplainableSection({
     return () => {
       if (playRef.current) clearTimeout(playRef.current);
     };
-  }, [playing, snapshotIdx, vizSnapshots, total, onSnapshotChange]);
+  }, [playing, snapshotIdx, activeSnapshots, total, onSnapshotChange]);
 
   // Scope diff between previous and current snapshot
   const scopeDiff = useMemo(() => {
-    if (!vizSnapshots || !currentSnap) return null;
+    if (!activeSnapshots || !currentSnap) return null;
     const prevSnap =
-      snapshotIdx > 0 ? vizSnapshots[snapshotIdx - 1] : null;
+      snapshotIdx > 0 ? activeSnapshots[snapshotIdx - 1] : null;
     return computeScopeDiff(
       prevSnap?.memory ?? null,
       currentSnap.memory ?? {}
     );
-  }, [vizSnapshots, currentSnap, snapshotIdx]);
+  }, [activeSnapshots, currentSnap, snapshotIdx]);
 
   // Click a flowchart node → drill into subflow, or jump to that stage's snapshot
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
-      // Try subflow drill-down first
       if (subflowNav.handleNodeClick(node.id)) return;
-      // Otherwise select the stage snapshot
-      if (!vizSnapshots) return;
-      const idx = vizSnapshots.findIndex(
+      if (!activeSnapshots) return;
+      const idx = activeSnapshots.findIndex(
         (s: any) => s.stageLabel === node.id
       );
       if (idx >= 0) {
@@ -1441,7 +1496,7 @@ function ExplainableSection({
         setDetailOpen(true);
       }
     },
-    [vizSnapshots, onSnapshotChange, subflowNav]
+    [activeSnapshots, onSnapshotChange, subflowNav]
   );
 
   return (
@@ -1481,7 +1536,7 @@ function ExplainableSection({
               />
             </div>
             {/* Toggle to open detail panel when collapsed */}
-            {!detailOpen && currentSnap && !subflowNav.isInSubflow && (
+            {!detailOpen && currentSnap && (
               <button
                 onClick={() => setDetailOpen(true)}
                 title="Show detail panel"
@@ -1508,8 +1563,8 @@ function ExplainableSection({
           </div>
         )}
 
-        {/* Collapsible detail panel with sub-tabs — hidden when inside subflow */}
-        {detailOpen && currentSnap && !subflowNav.isInSubflow && (
+        {/* Collapsible detail panel with sub-tabs */}
+        {detailOpen && currentSnap && (
           <div
             style={{
               width: "40%",
@@ -1582,7 +1637,7 @@ function ExplainableSection({
               </div>
 
               {/* Time-travel controls */}
-              {vizSnapshots && vizSnapshots.length > 0 && (
+              {activeSnapshots && activeSnapshots.length > 0 && (
                 <div
                   style={{
                     display: "flex",
@@ -1637,14 +1692,14 @@ function ExplainableSection({
                       gap: 2,
                     }}
                   >
-                    {vizSnapshots.map((_: any, i: number) => {
+                    {activeSnapshots.map((_: any, i: number) => {
                       const isActive = i === snapshotIdx;
                       const isDone = i < snapshotIdx;
                       return (
                         <button
                           key={i}
                           onClick={() => { setPlaying(false); onSnapshotChange(i); }}
-                          title={vizSnapshots[i].stageLabel}
+                          title={activeSnapshots[i].stageLabel}
                           style={{
                             flex: 1,
                             height: isActive ? 12 : 6,
@@ -1731,8 +1786,8 @@ function ExplainableSection({
         )}
       </div>
 
-      {/* Collapsible Gantt timeline at bottom — hidden when inside subflow */}
-      {vizSnapshots && vizSnapshots.length > 0 && !subflowNav.isInSubflow && (
+      {/* Collapsible Gantt timeline at bottom */}
+      {activeSnapshots && activeSnapshots.length > 0 && (
         <div
           style={{
             borderTop: "1px solid var(--border)",
@@ -1764,7 +1819,7 @@ function ExplainableSection({
           </button>
           {ganttOpen && (
             <GanttTimeline
-              snapshots={vizSnapshots}
+              snapshots={activeSnapshots}
               selectedIndex={snapshotIdx}
               onSelect={onSnapshotChange}
             />
@@ -2210,24 +2265,26 @@ function NarrativeTracePanel({
 
 function AICompatibleSection({
   narrative,
-  overlayFlowData,
-  subflowNav,
+  spec,
   vizSnapshots,
-  snapshotIdx,
   theme,
-  onSnapshotChange,
 }: {
   narrative: string[];
-  overlayFlowData: { nodes: any[]; edges: any[] } | null;
-  subflowNav: SubflowNavigation;
+  spec: SpecNode | null;
   vizSnapshots: any[] | null;
-  snapshotIdx: number;
   theme: string;
-  onSnapshotChange: (idx: number) => void;
 }) {
+  const {
+    subflowNav,
+    activeSnapshots,
+    snapshotIdx,
+    setSnapshotIdx: onSnapshotChange,
+    flowData: overlayFlowData,
+  } = useFlowchartData(spec, vizSnapshots);
+
   const [playing, setPlaying] = useState(false);
   const playRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const total = vizSnapshots?.length ?? 0;
+  const total = activeSnapshots?.length ?? 0;
   const canPrev = snapshotIdx > 0;
   const canNext = snapshotIdx < total - 1;
 
@@ -2235,15 +2292,11 @@ function AICompatibleSection({
   // Each "Stage N:" header (that isn't a step line) starts a new group.
   // We reveal groups proportionally to snapshotIdx / total vizSnapshots.
   const progressiveNarrative = useMemo(() => {
-    if (!vizSnapshots || vizSnapshots.length === 0 || narrative.length === 0) return narrative;
+    if (!activeSnapshots || activeSnapshots.length === 0 || narrative.length === 0) return narrative;
 
-    // Find stage group boundary indices: lines that start a new stage section.
-    // Step lines ("  Step N:") are NOT boundaries — they belong to the preceding stage.
     const boundaries: number[] = [];
     for (let i = 0; i < narrative.length; i++) {
       const trimmed = narrative[i].trimStart();
-      // Stage headers: "Stage N: ...", "[Parallel]: ...", "[Condition]: ..."
-      // But NOT "  Step N: ..." (indented step lines under a stage)
       if (
         (trimmed.startsWith("Stage ") && !trimmed.match(/^Stage\s+\d+:\s*Step\s/)) ||
         trimmed.startsWith("[")
@@ -2253,39 +2306,36 @@ function AICompatibleSection({
     }
 
     if (boundaries.length === 0) {
-      // No structure detected — reveal proportionally
-      const ratio = (snapshotIdx + 1) / vizSnapshots.length;
+      const ratio = (snapshotIdx + 1) / activeSnapshots.length;
       return narrative.slice(0, Math.max(1, Math.ceil(narrative.length * ratio)));
     }
 
-    // Map snapshotIdx to group count: reveal proportionally (floor to stay in sync with flowchart)
     const groupsToShow = Math.max(
       1,
       Math.min(
-        Math.floor(((snapshotIdx + 1) / vizSnapshots.length) * boundaries.length) || 1,
+        Math.floor(((snapshotIdx + 1) / activeSnapshots.length) * boundaries.length) || 1,
         boundaries.length
       )
     );
 
-    // End index: start of next group, or end of narrative
     const endIdx = groupsToShow < boundaries.length
       ? boundaries[groupsToShow]
       : narrative.length;
 
     return narrative.slice(0, Math.max(1, endIdx));
-  }, [vizSnapshots, snapshotIdx, narrative]);
+  }, [activeSnapshots, snapshotIdx, narrative]);
 
   const fullText = narrative.join("\n");
 
   // Auto-advance during playback
   useEffect(() => {
-    if (!playing || !vizSnapshots) return;
+    if (!playing || !activeSnapshots) return;
     if (snapshotIdx >= total - 1) {
       setPlaying(false);
       return;
     }
-    const stageDur = vizSnapshots[snapshotIdx]?.durationMs ?? 1;
-    const totalDur = vizSnapshots.reduce(
+    const stageDur = activeSnapshots[snapshotIdx]?.durationMs ?? 1;
+    const totalDur = activeSnapshots.reduce(
       (sum: number, s: any) => sum + (s.durationMs ?? 1),
       0
     );
@@ -2298,14 +2348,14 @@ function AICompatibleSection({
     return () => {
       if (playRef.current) clearTimeout(playRef.current);
     };
-  }, [playing, snapshotIdx, vizSnapshots, total, onSnapshotChange]);
+  }, [playing, snapshotIdx, activeSnapshots, total, onSnapshotChange]);
 
   // Click a flowchart node → drill into subflow, or jump to that stage
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
       if (subflowNav.handleNodeClick(node.id)) return;
-      if (!vizSnapshots) return;
-      const idx = vizSnapshots.findIndex(
+      if (!activeSnapshots) return;
+      const idx = activeSnapshots.findIndex(
         (s: any) => s.stageLabel === node.id
       );
       if (idx >= 0) {
@@ -2313,7 +2363,7 @@ function AICompatibleSection({
         onSnapshotChange(idx);
       }
     },
-    [vizSnapshots, onSnapshotChange, subflowNav]
+    [activeSnapshots, onSnapshotChange, subflowNav]
   );
 
   return (
@@ -2326,7 +2376,7 @@ function AICompatibleSection({
       }}
     >
       {/* Time-travel controls */}
-      {vizSnapshots && vizSnapshots.length > 0 && (
+      {activeSnapshots && activeSnapshots.length > 0 && (
         <div
           style={{
             padding: "6px 12px",
@@ -2386,14 +2436,14 @@ function AICompatibleSection({
               padding: "0 4px",
             }}
           >
-            {vizSnapshots.map((_: any, i: number) => {
+            {activeSnapshots.map((_: any, i: number) => {
               const isActive = i === snapshotIdx;
               const isDone = i < snapshotIdx;
               return (
                 <button
                   key={i}
                   onClick={() => { setPlaying(false); onSnapshotChange(i); }}
-                  title={vizSnapshots[i].stageLabel}
+                  title={activeSnapshots[i].stageLabel}
                   style={{
                     flex: 1,
                     height: isActive ? 14 : 8,
