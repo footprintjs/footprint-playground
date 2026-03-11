@@ -9,6 +9,7 @@
  *   RECEIVED → VALIDATED → PAYMENT_PROCESSED → SHIPPED → DELIVERED
  *
  * Run:  npm run integration:state-machine
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/state-machine
  */
 
 import {

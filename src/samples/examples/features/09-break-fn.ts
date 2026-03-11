@@ -11,6 +11,7 @@
  * - Safety limits (cost/token budget exceeded)
  *
  * Run:  npm run feature:break
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/break-fn
  */
 
 import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

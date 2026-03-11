@@ -7,6 +7,7 @@
  *
  *   Parent:  CreateOrder → [PaymentSubflow] → ShipOrder
  *   Subflow: ValidateCard → ChargeCard → SendReceipt
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/subflow
  */
 
 import { flowChart, FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

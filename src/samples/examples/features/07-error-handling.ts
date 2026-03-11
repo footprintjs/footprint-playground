@@ -8,6 +8,7 @@
  * - Custom error recorder for production alerting
  *
  * Run:  npm run feature:errors
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/error-handling
  */
 
 import {

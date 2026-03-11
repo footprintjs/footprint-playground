@@ -6,6 +6,7 @@
  * Call executor.getNarrative() to get the full causal trace — zero setup.
  *
  * Run:  npm run feature:narrative
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/narrative
  */
 
 import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';

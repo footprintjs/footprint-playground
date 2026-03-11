@@ -13,6 +13,7 @@
  * Compare how each strategy summarizes the same 20-iteration loop differently.
  *
  * Run:  npm run fr:compare
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/strategy-comparison
  */
 
 import {

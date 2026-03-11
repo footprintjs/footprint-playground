@@ -13,6 +13,7 @@
  * - DebugRecorder capturing errors for diagnostics
  *
  * Run:  npm run feature:metrics
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/metrics
  */
 
 import {

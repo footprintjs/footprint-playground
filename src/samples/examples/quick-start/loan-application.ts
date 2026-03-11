@@ -8,6 +8,7 @@
  * - Decider-based branching
  *
  * In the playground, edit the INPUT panel (bottom-left) to change applicant data.
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/loan-application
  */
 
 import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

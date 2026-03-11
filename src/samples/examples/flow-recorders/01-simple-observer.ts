@@ -6,6 +6,7 @@
  * modifying execution behavior.
  *
  * Run:  npm run fr:simple
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/simple-observer
  */
 
 import {

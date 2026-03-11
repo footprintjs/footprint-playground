@@ -5,6 +5,7 @@
  * The scope proxy validates types at runtime.
  *
  * Run:  npm run feature:typed-scope
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/typed-scope
  */
 
 import { z } from 'zod';

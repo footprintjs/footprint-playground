@@ -7,6 +7,7 @@
  *                ┌─ CheckInventory ─┐
  *   LoadOrder ───┤                  ├── FinalizeOrder
  *                └─ RunFraudCheck ──┘
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/fork
  */
 
 import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

@@ -9,6 +9,7 @@
  *                   └─ "trial"    → ShowOnboarding    (default)
  *                                           ↓
  *                                      CalculateTotal
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/decider
  */
 
 import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

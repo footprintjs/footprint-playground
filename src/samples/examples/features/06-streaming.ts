@@ -7,6 +7,7 @@
  * This simulates an LLM generating a response token-by-token.
  *
  * Run:  npm run feature:streaming
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/streaming
  */
 
 import {

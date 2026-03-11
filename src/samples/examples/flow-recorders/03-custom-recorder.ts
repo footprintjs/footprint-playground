@@ -7,6 +7,7 @@
  *   3. Extending NarrativeFlowRecorder (custom loop strategy)
  *
  * Run:  npm run fr:custom
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/custom-recorder
  */
 
 import {

@@ -11,6 +11,7 @@
  *   - Error isolation (one recorder failing doesn't affect others)
  *
  * Run:  npm run fr:multiple
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/multiple-recorders
  */
 
 import {

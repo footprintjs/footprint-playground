@@ -7,6 +7,7 @@
  *                       ┌─ DiabetesScreening ──┐
  *   LoadPatient → Triage ┤─ HypertensionCheck ─┤─→ GenerateReport
  *                       └─ ObesityAssessment ──┘
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/selector
  */
 
 import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';

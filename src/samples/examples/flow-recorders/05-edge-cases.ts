@@ -9,6 +9,7 @@
  *   - Performance measurement with many recorders
  *
  * Run:  npm run fr:edge-cases
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/recorder-edge-cases
  */
 
 import {

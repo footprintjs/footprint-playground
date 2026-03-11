@@ -9,6 +9,7 @@
  * D. Before/After        — why the old mutable pattern was dangerous
  *
  * Run:  npx tsx examples/errors/input-safety.ts
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/input-safety
  */
 
 import { z } from 'zod';

@@ -10,6 +10,7 @@
  * C. Using extractErrorInfo/formatErrorInfo utilities directly
  *
  * Run:  npx tsx examples/errors/structured-error-flow.ts
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/structured-errors
  */
 
 import { z } from 'zod';

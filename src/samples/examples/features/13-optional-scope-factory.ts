@@ -10,6 +10,7 @@
  * 3. Typed scopeFactory — with a ScopeFacade subclass
  *
  * Run:  npm run feature:scope-factory
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/optional-scope-factory
  */
 
 import {

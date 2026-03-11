@@ -7,6 +7,7 @@
  *   CallAPI ←──┐
  *       │      │
  *   EvaluateResult ──┘  (retries with backoff until success or max attempts)
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/loops
  */
 
 import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';

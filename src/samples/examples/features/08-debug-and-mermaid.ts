@@ -5,6 +5,7 @@
  * - toMermaid() generates a Mermaid flowchart diagram from the builder
  *
  * Run:  npm run feature:debug
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/debug-mermaid
  */
 
 import {

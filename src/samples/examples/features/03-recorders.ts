@@ -6,6 +6,7 @@
  * by implementing the Recorder interface.
  *
  * Run:  npm run feature:recorders
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/recorders
  */
 
 import {

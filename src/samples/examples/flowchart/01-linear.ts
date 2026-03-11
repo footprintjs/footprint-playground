@@ -6,6 +6,7 @@
  *   FetchUser → EnrichProfile → SendWelcomeEmail
  *
  * In the playground, edit the INPUT panel to change the user data.
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/linear
  */
 
 import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';

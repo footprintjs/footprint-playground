@@ -10,6 +10,7 @@
  * - Raw JSON Schema works too (no Zod dependency required)
  *
  * Run:  npm run feature:contract
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/contract-openapi
  */
 
 import { flowChart, FlowChartExecutor, ScopeFacade, defineContract } from 'footprint';

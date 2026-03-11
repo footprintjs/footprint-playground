@@ -10,6 +10,7 @@
  *   3. SeparateNarrativeFlowRecorder for split loop detail
  *
  * Run:  npm run feature:flow-recorders
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/flow-recorders
  */
 
 import {

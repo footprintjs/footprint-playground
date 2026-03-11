@@ -7,6 +7,7 @@
  * - Arrays
  *
  * Run:  npm run feature:values
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/values
  */
 
 import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';

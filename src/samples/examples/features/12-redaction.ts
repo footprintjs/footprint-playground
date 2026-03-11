@@ -8,6 +8,7 @@
  * but the runtime still gets the real value.
  *
  * Run:  npm run feature:redaction
+ * Try it: https://footprintjs.github.io/footprint-playground/samples/redaction
  */
 
 import {
