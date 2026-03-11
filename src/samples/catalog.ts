@@ -1,45 +1,44 @@
 // Sample code imported as raw text strings via Vite's ?raw
-// These resolve to sibling directory — allowed via vite.config.ts server.fs.allow
 
 // Quick Start
-import loanCode from "../../../footprint-samples/examples/quick-start/loan-application.ts?raw";
+import loanCode from "./examples/quick-start/loan-application.ts?raw";
 
 // Flowchart
-import linearCode from "../../../footprint-samples/examples/flowchart/01-linear.ts?raw";
-import forkCode from "../../../footprint-samples/examples/flowchart/02-fork.ts?raw";
-import deciderCode from "../../../footprint-samples/examples/flowchart/03-decider.ts?raw";
-import selectorCode from "../../../footprint-samples/examples/flowchart/04-selector.ts?raw";
-import subflowCode from "../../../footprint-samples/examples/flowchart/05-subflow.ts?raw";
-import loopsCode from "../../../footprint-samples/examples/flowchart/06-loops.ts?raw";
+import linearCode from "./examples/flowchart/01-linear.ts?raw";
+import forkCode from "./examples/flowchart/02-fork.ts?raw";
+import deciderCode from "./examples/flowchart/03-decider.ts?raw";
+import selectorCode from "./examples/flowchart/04-selector.ts?raw";
+import subflowCode from "./examples/flowchart/05-subflow.ts?raw";
+import loopsCode from "./examples/flowchart/06-loops.ts?raw";
 
 // Features
-import valuesCode from "../../../footprint-samples/examples/features/01-values.ts?raw";
-import narrativeCode from "../../../footprint-samples/examples/features/02-narrative.ts?raw";
-import recordersCode from "../../../footprint-samples/examples/features/03-recorders.ts?raw";
-import typedScopeCode from "../../../footprint-samples/examples/features/04-typed-scope.ts?raw";
-import metricsCode from "../../../footprint-samples/examples/features/05-metrics.ts?raw";
-import streamingCode from "../../../footprint-samples/examples/features/06-streaming.ts?raw";
-import errorHandlingCode from "../../../footprint-samples/examples/features/07-error-handling.ts?raw";
-import debugMermaidCode from "../../../footprint-samples/examples/features/08-debug-and-mermaid.ts?raw";
-import breakFnCode from "../../../footprint-samples/examples/features/09-break-fn.ts?raw";
-import contractCode from "../../../footprint-samples/examples/features/10-contract-openapi.ts?raw";
-import flowRecordersCode from "../../../footprint-samples/examples/features/11-flow-recorders.ts?raw";
-import redactionCode from "../../../footprint-samples/examples/features/12-redaction.ts?raw";
-import optionalScopeCode from "../../../footprint-samples/examples/features/13-optional-scope-factory.ts?raw";
+import valuesCode from "./examples/features/01-values.ts?raw";
+import narrativeCode from "./examples/features/02-narrative.ts?raw";
+import recordersCode from "./examples/features/03-recorders.ts?raw";
+import typedScopeCode from "./examples/features/04-typed-scope.ts?raw";
+import metricsCode from "./examples/features/05-metrics.ts?raw";
+import streamingCode from "./examples/features/06-streaming.ts?raw";
+import errorHandlingCode from "./examples/features/07-error-handling.ts?raw";
+import debugMermaidCode from "./examples/features/08-debug-and-mermaid.ts?raw";
+import breakFnCode from "./examples/features/09-break-fn.ts?raw";
+import contractCode from "./examples/features/10-contract-openapi.ts?raw";
+import flowRecordersCode from "./examples/features/11-flow-recorders.ts?raw";
+import redactionCode from "./examples/features/12-redaction.ts?raw";
+import optionalScopeCode from "./examples/features/13-optional-scope-factory.ts?raw";
 
 // Flow Recorders
-import simpleObserverCode from "../../../footprint-samples/examples/flow-recorders/01-simple-observer.ts?raw";
-import strategyComparisonCode from "../../../footprint-samples/examples/flow-recorders/02-strategy-comparison.ts?raw";
-import customRecorderCode from "../../../footprint-samples/examples/flow-recorders/03-custom-recorder.ts?raw";
-import multipleRecordersCode from "../../../footprint-samples/examples/flow-recorders/04-multiple-recorders.ts?raw";
-import edgeCasesCode from "../../../footprint-samples/examples/flow-recorders/05-edge-cases.ts?raw";
+import simpleObserverCode from "./examples/flow-recorders/01-simple-observer.ts?raw";
+import strategyComparisonCode from "./examples/flow-recorders/02-strategy-comparison.ts?raw";
+import customRecorderCode from "./examples/flow-recorders/03-custom-recorder.ts?raw";
+import multipleRecordersCode from "./examples/flow-recorders/04-multiple-recorders.ts?raw";
+import edgeCasesCode from "./examples/flow-recorders/05-edge-cases.ts?raw";
 
 // Errors
-import inputSafetyCode from "../../../footprint-samples/examples/errors/input-safety.ts?raw";
-import structuredErrorCode from "../../../footprint-samples/examples/errors/structured-error-flow.ts?raw";
+import inputSafetyCode from "./examples/errors/input-safety.ts?raw";
+import structuredErrorCode from "./examples/errors/structured-error-flow.ts?raw";
 
 // Integrations
-import stateMachineCode from "../../../footprint-samples/examples/integrations/state-machine.ts?raw";
+import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 
 export interface Sample {
   id: string;
