@@ -17,9 +17,12 @@ import {
   type ExecutionResult,
 } from "../runner/executeCode";
 import {
-  specToReactFlow,
   StageNode,
+  SubflowBreadcrumb,
+  useSubflowNavigation,
   type ExecutionOverlay,
+  type SpecNode,
+  type SubflowNavigation,
 } from "footprint-explainable-ui/flowchart";
 import { SpecView } from "./SpecView";
 
@@ -99,46 +102,36 @@ export function LiveRunner() {
 
   const currentSnap = vizSnapshots?.[snapshotIdx];
 
-  // Build-time flowchart (plain gray — no execution overlay)
-  const buildTimeFlowData = useMemo(() => {
-    if (!result?.buildTime?.spec) return null;
-    try {
-      return specToReactFlow(result.buildTime.spec as any);
-    } catch {
-      return null;
-    }
-  }, [result]);
+  // Build-time flowchart with subflow drill-down (plain gray — no execution overlay)
+  const buildTimeSpec = (result?.buildTime?.spec as unknown as SpecNode) ?? null;
+  const buildSubflow = useSubflowNavigation(buildTimeSpec);
+  const buildTimeFlowData = buildTimeSpec
+    ? { nodes: buildSubflow.nodes, edges: buildSubflow.edges }
+    : null;
 
-  // Build-time flowchart WITH execution path overlay (for Explainable tab)
-  // Re-derives when snapshotIdx changes so the active node updates
-  //
+  // Execution overlay — derived from vizSnapshots + snapshotIdx
   // IMPORTANT: We use stageLabel (= runtime node.name = human-readable stage name)
   // NOT stageName (= runtime node.id = runId) because flowchart node IDs come from
   // the spec tree's node.name, which matches stageLabel.
-  const overlayFlowData = useMemo(() => {
-    if (!result?.buildTime?.spec || !vizSnapshots) return null;
-    try {
-      const executionOrder = vizSnapshots
-        .slice(0, snapshotIdx + 1)
-        .map((s: any) => s.stageLabel as string);
-      const doneStages = new Set(
-        vizSnapshots.slice(0, snapshotIdx).map((s: any) => s.stageLabel)
-      );
-      const activeStage = vizSnapshots[snapshotIdx]?.stageLabel ?? null;
-      const executedStages = new Set([...doneStages]);
-      if (activeStage) executedStages.add(activeStage);
+  const executionOverlay = useMemo<ExecutionOverlay | undefined>(() => {
+    if (!vizSnapshots) return undefined;
+    const executionOrder = vizSnapshots
+      .slice(0, snapshotIdx + 1)
+      .map((s: any) => s.stageLabel as string);
+    const doneStages = new Set(
+      vizSnapshots.slice(0, snapshotIdx).map((s: any) => s.stageLabel)
+    );
+    const activeStage = vizSnapshots[snapshotIdx]?.stageLabel ?? null;
+    const executedStages = new Set([...doneStages]);
+    if (activeStage) executedStages.add(activeStage);
+    return { doneStages, activeStage, executedStages, executionOrder };
+  }, [vizSnapshots, snapshotIdx]);
 
-      const overlay: ExecutionOverlay = {
-        doneStages,
-        activeStage,
-        executedStages,
-        executionOrder,
-      };
-      return specToReactFlow(result.buildTime.spec as any, overlay);
-    } catch {
-      return null;
-    }
-  }, [result, vizSnapshots, snapshotIdx]);
+  // Overlay flowchart with subflow drill-down (for Explainable/Narrative tabs)
+  const overlaySubflow = useSubflowNavigation(buildTimeSpec, executionOverlay);
+  const overlayFlowData = buildTimeSpec && vizSnapshots
+    ? { nodes: overlaySubflow.nodes, edges: overlaySubflow.edges }
+    : null;
 
   return (
     <div
@@ -361,25 +354,32 @@ export function LiveRunner() {
                 <SpecView buildTime={result.buildTime} />
               )}
               {leftTab === "flowchart" && buildTimeFlowData && (
-                <div style={{ width: "100%", height: "100%" }}>
-                  <ReactFlow
-                    nodes={buildTimeFlowData.nodes}
-                    edges={buildTimeFlowData.edges}
-                    nodeTypes={nodeTypes}
-                    fitView
-                    proOptions={{ hideAttribution: true }}
-                    nodesDraggable={false}
-                    nodesConnectable={false}
-                    elementsSelectable={false}
-                    panOnDrag
-                    zoomOnScroll
-                  >
-                    <Background
-                      color={theme === "dark" ? "#2e2938" : "#e4d5c3"}
-                      gap={20}
-                      size={1}
-                    />
-                  </ReactFlow>
+                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+                  <SubflowBreadcrumb
+                    breadcrumbs={buildSubflow.breadcrumbs}
+                    onNavigate={buildSubflow.navigateTo}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <ReactFlow
+                      nodes={buildTimeFlowData.nodes}
+                      edges={buildTimeFlowData.edges}
+                      nodeTypes={nodeTypes}
+                      fitView
+                      proOptions={{ hideAttribution: true }}
+                      nodesDraggable={false}
+                      nodesConnectable={false}
+                      elementsSelectable
+                      panOnDrag
+                      zoomOnScroll
+                      onNodeClick={(_e, node) => buildSubflow.handleNodeClick(node.id)}
+                    >
+                      <Background
+                        color={theme === "dark" ? "#2e2938" : "#e4d5c3"}
+                        gap={20}
+                        size={1}
+                      />
+                    </ReactFlow>
+                  </div>
                 </div>
               )}
             </div>
@@ -519,6 +519,7 @@ export function LiveRunner() {
                 {rightTab === "trace" && (
                   <ExplainableSection
                     overlayFlowData={overlayFlowData}
+                    subflowNav={overlaySubflow}
                     vizSnapshots={vizSnapshots}
                     snapshotIdx={snapshotIdx}
                     currentSnap={currentSnap}
@@ -534,6 +535,7 @@ export function LiveRunner() {
                   <AICompatibleSection
                     narrative={result.narrative}
                     overlayFlowData={overlayFlowData}
+                    subflowNav={overlaySubflow}
                     vizSnapshots={vizSnapshots}
                     snapshotIdx={snapshotIdx}
                     theme={theme}
@@ -1362,6 +1364,7 @@ type DetailTab = "stage" | "diff" | "semantic";
 
 function ExplainableSection({
   overlayFlowData,
+  subflowNav,
   vizSnapshots,
   snapshotIdx,
   currentSnap,
@@ -1370,6 +1373,7 @@ function ExplainableSection({
   onSnapshotChange,
 }: {
   overlayFlowData: { nodes: any[]; edges: any[] } | null;
+  subflowNav: SubflowNavigation;
   vizSnapshots: any[] | null;
   snapshotIdx: number;
   currentSnap: any;
@@ -1422,10 +1426,12 @@ function ExplainableSection({
     );
   }, [vizSnapshots, currentSnap, snapshotIdx]);
 
-  // Click a flowchart node → jump to that stage's snapshot
-  // Match by stageLabel (= node.name) since flowchart node IDs use spec names
+  // Click a flowchart node → drill into subflow, or jump to that stage's snapshot
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
+      // Try subflow drill-down first
+      if (subflowNav.handleNodeClick(node.id)) return;
+      // Otherwise select the stage snapshot
       if (!vizSnapshots) return;
       const idx = vizSnapshots.findIndex(
         (s: any) => s.stageLabel === node.id
@@ -1435,7 +1441,7 @@ function ExplainableSection({
         setDetailOpen(true);
       }
     },
-    [vizSnapshots, onSnapshotChange]
+    [vizSnapshots, onSnapshotChange, subflowNav]
   );
 
   return (
@@ -1459,13 +1465,21 @@ function ExplainableSection({
                 ? "1px solid var(--border)"
                 : "none",
               position: "relative",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <OverlayFlowChart
-              flowData={overlayFlowData}
-              theme={theme}
-              onNodeClick={handleNodeClick}
+            <SubflowBreadcrumb
+              breadcrumbs={subflowNav.breadcrumbs}
+              onNavigate={subflowNav.navigateTo}
             />
+            <div style={{ flex: 1 }}>
+              <OverlayFlowChart
+                flowData={overlayFlowData}
+                theme={theme}
+                onNodeClick={handleNodeClick}
+              />
+            </div>
             {/* Toggle to open detail panel when collapsed */}
             {!detailOpen && currentSnap && (
               <button
@@ -2197,6 +2211,7 @@ function NarrativeTracePanel({
 function AICompatibleSection({
   narrative,
   overlayFlowData,
+  subflowNav,
   vizSnapshots,
   snapshotIdx,
   theme,
@@ -2204,6 +2219,7 @@ function AICompatibleSection({
 }: {
   narrative: string[];
   overlayFlowData: { nodes: any[]; edges: any[] } | null;
+  subflowNav: SubflowNavigation;
   vizSnapshots: any[] | null;
   snapshotIdx: number;
   theme: string;
@@ -2284,9 +2300,10 @@ function AICompatibleSection({
     };
   }, [playing, snapshotIdx, vizSnapshots, total, onSnapshotChange]);
 
-  // Click a flowchart node → jump to that stage
+  // Click a flowchart node → drill into subflow, or jump to that stage
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
+      if (subflowNav.handleNodeClick(node.id)) return;
       if (!vizSnapshots) return;
       const idx = vizSnapshots.findIndex(
         (s: any) => s.stageLabel === node.id
@@ -2296,7 +2313,7 @@ function AICompatibleSection({
         onSnapshotChange(idx);
       }
     },
-    [vizSnapshots, onSnapshotChange]
+    [vizSnapshots, onSnapshotChange, subflowNav]
   );
 
   return (
@@ -2407,13 +2424,21 @@ function AICompatibleSection({
               flex: 1,
               overflow: "hidden",
               borderRight: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <OverlayFlowChart
-              flowData={overlayFlowData}
-              theme={theme}
-              onNodeClick={handleNodeClick}
+            <SubflowBreadcrumb
+              breadcrumbs={subflowNav.breadcrumbs}
+              onNavigate={subflowNav.navigateTo}
             />
+            <div style={{ flex: 1 }}>
+              <OverlayFlowChart
+                flowData={overlayFlowData}
+                theme={theme}
+                onNodeClick={handleNodeClick}
+              />
+            </div>
           </div>
         )}
 
