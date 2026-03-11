@@ -81,10 +81,10 @@ export const samples: Sample[] = [
     id: "linear",
     name: "Linear Pipeline",
     category: "Flowchart",
-    description: "The simplest flow — stages execute one after another: A → B → C.",
+    description: "The simplest flow — stages execute one after another: FetchUser → EnrichProfile → SendWelcomeEmail.",
     code: linearCode,
     defaultInput: JSON.stringify(
-      { userId: 42, username: "alice" },
+      { userId: 42 },
       null,
       2,
     ),
@@ -94,7 +94,7 @@ export const samples: Sample[] = [
     name: "Fork (Parallel)",
     category: "Flowchart",
     description:
-      "Fork runs multiple branches in parallel, then continues after all complete.",
+      "Fork runs inventory check and fraud check in parallel, then finalizes the order.",
     code: forkCode,
   },
   {
@@ -102,28 +102,28 @@ export const samples: Sample[] = [
     name: "Decider (Conditional)",
     category: "Flowchart",
     description:
-      "A decider inspects scope and routes to one of several branches.",
+      "Classify a customer's tier and route to loyalty discount, upgrade prompt, or onboarding.",
     code: deciderCode,
   },
   {
     id: "selector",
     name: "Selector",
     category: "Flowchart",
-    description: "Select a subset of branches to execute based on runtime conditions.",
+    description: "Triage a patient's vitals and run matching screening branches in parallel.",
     code: selectorCode,
   },
   {
     id: "subflow",
     name: "Subflow",
     category: "Flowchart",
-    description: "Nest one flowchart inside another as a reusable subflow.",
+    description: "Nest a payment processing flowchart inside an order pipeline as a reusable subflow.",
     code: subflowCode,
   },
   {
     id: "loops",
     name: "Loops",
     category: "Flowchart",
-    description: "Loop over a stage until a condition is met using loopTo and breakFn.",
+    description: "Retry an unstable API with exponential backoff using loopTo and breakFn.",
     code: loopsCode,
   },
 

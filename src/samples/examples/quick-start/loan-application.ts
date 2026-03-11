@@ -8,8 +8,6 @@
  * - Decider-based branching
  * - Combined narrative output for LLM consumption
  *
- * Run:  npm run quick-start
- *
  * In the playground, edit the INPUT panel (bottom-left) to change applicant data.
  */
 
@@ -23,7 +21,7 @@ import {
 
 (async () => {
 
-// ── Application data ────────────────────────────────────────────────────
+// ── Input ───────────────────────────────────────────────────────────────
 // In the playground, INPUT is provided via the JSON input panel.
 // When running standalone, define it here as a fallback.
 
@@ -53,28 +51,45 @@ const input: LoanInput = (typeof INPUT !== 'undefined' && INPUT) || {
   },
 };
 
-// ── Stage functions ─────────────────────────────────────────────────────
-// Input is always read via getArgs() — frozen, readonly, same across all stages.
-// Computed values are written to scope via setValue().
+// ── Mock Services ───────────────────────────────────────────────────────
+
+const creditBureau = {
+  pullReport: (score: number) => {
+    const tier =
+      score >= 740 ? 'excellent'
+        : score >= 670 ? 'good'
+          : score >= 580 ? 'fair'
+            : 'poor';
+    return {
+      tier,
+      flags: tier === 'fair' ? ['below-average credit'] : [],
+    };
+  },
+};
+
+const employerVerification = {
+  verify: (status: string, years: number) => ({
+    verified: status !== 'unemployed',
+    flags:
+      status === 'self-employed' && years < 2
+        ? [`Self-employed for only ${years} year(s)`]
+        : [],
+  }),
+};
+
+// ── Stage Functions ─────────────────────────────────────────────────────
 
 const receiveApplication = async (scope: ScopeFacade) => {
   const { app } = scope.getArgs<LoanInput>();
-  console.log(`Received application from ${app.applicantName}`);
+  console.log(`  Received application from ${app.applicantName}`);
 };
 
 const pullCreditReport = async (scope: ScopeFacade) => {
   const { app } = scope.getArgs<LoanInput>();
-  await new Promise((r) => setTimeout(r, 40)); // simulate credit bureau API call
-  const tier =
-    app.creditScore >= 740
-      ? 'excellent'
-      : app.creditScore >= 670
-        ? 'good'
-        : app.creditScore >= 580
-          ? 'fair'
-          : 'poor';
-  scope.setValue('creditTier', tier);
-  scope.setValue('creditFlags', tier === 'fair' ? ['below-average credit'] : []);
+  await new Promise((r) => setTimeout(r, 40)); // simulate credit bureau API
+  const report = creditBureau.pullReport(app.creditScore);
+  scope.setValue('creditTier', report.tier);
+  scope.setValue('creditFlags', report.flags);
 };
 
 const calculateDTI = async (scope: ScopeFacade) => {
@@ -92,14 +107,9 @@ const calculateDTI = async (scope: ScopeFacade) => {
 const verifyEmployment = async (scope: ScopeFacade) => {
   const { app } = scope.getArgs<LoanInput>();
   await new Promise((r) => setTimeout(r, 25)); // simulate employer verification
-  const verified = app.employmentStatus !== 'unemployed';
-  scope.setValue('employmentVerified', verified);
-  scope.setValue(
-    'employmentFlags',
-    app.employmentStatus === 'self-employed' && app.employmentYears < 2
-      ? [`Self-employed for only ${app.employmentYears} year(s)`]
-      : [],
-  );
+  const result = employerVerification.verify(app.employmentStatus, app.employmentYears);
+  scope.setValue('employmentVerified', result.verified);
+  scope.setValue('employmentFlags', result.flags);
 };
 
 const assessRisk = async (scope: ScopeFacade) => {
@@ -140,7 +150,7 @@ const manualReview = async (scope: ScopeFacade) => {
   scope.setValue('decision', `${app.applicantName}: SENT TO MANUAL REVIEW`);
 };
 
-// ── Build the flow ──────────────────────────────────────────────────────
+// ── Flowchart ───────────────────────────────────────────────────────────
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
@@ -166,7 +176,7 @@ const chart = new FlowChartBuilder()
     .end()
   .build();
 
-// ── Instrument with NarrativeRecorder ───────────────────────────────────
+// ── Run ─────────────────────────────────────────────────────────────────
 
 const recorder = new NarrativeRecorder({ id: 'loan', detail: 'full' });
 
@@ -176,12 +186,8 @@ const scopeFactory = (ctx: any, stageName: string, readOnly?: unknown) => {
   return scope;
 };
 
-// ── Run with runtime input ──────────────────────────────────────────────
-
 const executor = new FlowChartExecutor(chart, scopeFactory);
 await executor.run({ input });
-
-// ── Print the causal trace ──────────────────────────────────────────────
 
 const flowNarrative = executor.getFlowNarrative();
 const combined = new CombinedNarrativeBuilder();
