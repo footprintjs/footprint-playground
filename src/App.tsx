@@ -7,11 +7,11 @@ function App() {
   return (
     <BrowserRouter basename="/footprint-playground">
       <Routes>
-        <Route path="/" element={<LiveRunner />} />
         <Route
-          path="/learn"
+          path="/"
           element={<TutorialShell tutorial={restaurantOrder} />}
         />
+        <Route path="/samples" element={<LiveRunner />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

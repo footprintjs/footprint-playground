@@ -650,14 +650,14 @@ function Toolbar({
       </div>
 
       <Link
-        to="/learn"
+        to="/"
         style={{
           fontSize: 12,
           color: "var(--text-muted)",
           textDecoration: "none",
         }}
       >
-        Tutorial
+        How It Works
       </Link>
 
       <button
