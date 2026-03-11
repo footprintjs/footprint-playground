@@ -7,6 +7,8 @@ interface StageNodeData {
   done: boolean;
   error: boolean;
   linked?: boolean;
+  dimmed?: boolean;
+  stepNumber?: number;
 }
 
 export function StageNodeComponent({ data }: { data: StageNodeData }) {
@@ -26,8 +28,35 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
         ? "var(--success)"
         : "var(--border)";
 
+  const isOnPath = data.active || data.done;
+
   return (
     <div style={{ position: "relative" }}>
+      {/* Step number badge — Google Maps waypoint marker */}
+      {data.stepNumber != null && isOnPath && (
+        <div
+          style={{
+            position: "absolute",
+            top: -10,
+            left: -10,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            background: data.active ? "var(--accent)" : "var(--success)",
+            color: "white",
+            fontSize: 11,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            boxShadow: `0 0 8px ${data.active ? "rgba(99, 102, 241, 0.5)" : "rgba(34, 197, 94, 0.4)"}`,
+          }}
+        >
+          {data.stepNumber}
+        </div>
+      )}
+
       {/* Linked pulse ring — code-to-node visual link */}
       {data.linked && (
         <motion.div
@@ -43,6 +72,21 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
         />
       )}
 
+      {/* Active node pulse ring — like GPS "you are here" */}
+      {data.active && (
+        <motion.div
+          animate={{ scale: [1, 1.4], opacity: [0.4, 0] }}
+          transition={{ repeat: Infinity, duration: 1.5, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            inset: -6,
+            borderRadius: 16,
+            border: "2px solid var(--accent-light)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -52,21 +96,22 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
           border: `2px solid ${borderColor}`,
           borderRadius: 12,
           padding: "12px 24px",
-          color: data.active || data.done || data.error ? "white" : "var(--node-text)",
+          color: isOnPath || data.error ? "white" : "var(--node-text)",
           fontSize: 14,
           fontWeight: 500,
           minWidth: 140,
           textAlign: "center",
           boxShadow: data.active
-            ? "0 0 20px rgba(99, 102, 241, 0.4)"
+            ? "0 0 24px rgba(99, 102, 241, 0.5), 0 0 8px rgba(99, 102, 241, 0.3)"
             : data.done
-              ? "0 0 12px rgba(34, 197, 94, 0.2)"
+              ? "0 0 16px rgba(34, 197, 94, 0.3), 0 0 4px rgba(34, 197, 94, 0.2)"
               : data.linked
                 ? "0 0 16px rgba(99, 102, 241, 0.3)"
                 : "0 2px 8px var(--shadow-node)",
         }}
       >
         <Handle
+          id="target"
           type="target"
           position={Position.Top}
           style={{ background: borderColor, border: "none", width: 8, height: 8 }}
@@ -86,6 +131,7 @@ export function StageNodeComponent({ data }: { data: StageNodeData }) {
           {data.label}
         </div>
         <Handle
+          id="source"
           type="source"
           position={Position.Bottom}
           style={{ background: borderColor, border: "none", width: 8, height: 8 }}

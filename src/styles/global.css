@@ -2,35 +2,36 @@
 
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --success: #22c55e;
-  --error: #ef4444;
-  --warning: #f59e0b;
-  --border: #334155;
-  --node-bg: #1e293b;
-  --node-active: #6366f1;
-  --node-done: #22c55e;
-  --node-error: #ef4444;
-  --node-text: #f8fafc;
-  --shadow-node: rgba(0, 0, 0, 0.3);
+  /* Warm dark palette — charcoal with subtle warmth */
+  --bg-primary: #17141f;
+  --bg-secondary: #211d2b;
+  --bg-tertiary: #2e2938;
+  --text-primary: #f0ece4;
+  --text-secondary: #a89eb4;
+  --text-muted: #6e6480;
+  --accent: #7c6cf0;
+  --accent-light: #9d8ff8;
+  --success: #3dd68c;
+  --error: #f06060;
+  --warning: #f0a040;
+  --border: #362f44;
+  --node-bg: #211d2b;
+  --node-active: #7c6cf0;
+  --node-done: #3dd68c;
+  --node-error: #f06060;
+  --node-text: #f0ece4;
+  --shadow-node: rgba(0, 0, 0, 0.4);
 
   /* Phase colors */
-  --phase-build: #6366f1;
-  --phase-build-dim: rgba(99, 102, 241, 0.06);
-  --phase-build-border: rgba(99, 102, 241, 0.2);
-  --phase-execute: #f59e0b;
-  --phase-execute-dim: rgba(245, 158, 11, 0.06);
-  --phase-execute-border: rgba(245, 158, 11, 0.2);
-  --phase-observe: #22c55e;
-  --phase-observe-dim: rgba(34, 197, 94, 0.06);
-  --phase-observe-border: rgba(34, 197, 94, 0.2);
+  --phase-build: #7c6cf0;
+  --phase-build-dim: rgba(124, 108, 240, 0.06);
+  --phase-build-border: rgba(124, 108, 240, 0.2);
+  --phase-execute: #f0a040;
+  --phase-execute-dim: rgba(240, 160, 64, 0.06);
+  --phase-execute-border: rgba(240, 160, 64, 0.2);
+  --phase-observe: #3dd68c;
+  --phase-observe-dim: rgba(61, 214, 140, 0.06);
+  --phase-observe-border: rgba(61, 214, 140, 0.2);
 
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   color: var(--text-primary);
@@ -38,34 +39,35 @@
 }
 
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  /* Warm cream/peach palette inspired by the architecture diagram */
+  --bg-primary: #fdf6ee;
+  --bg-secondary: #fff9f2;
+  --bg-tertiary: #f0e6d8;
+  --text-primary: #2d1f10;
+  --text-secondary: #6b5744;
+  --text-muted: #a08b74;
   --accent: #4f46e5;
   --accent-light: #6366f1;
-  --success: #16a34a;
-  --error: #dc2626;
-  --warning: #d97706;
-  --border: #cbd5e1;
-  --node-bg: #ffffff;
-  --node-active: #4f46e5;
-  --node-done: #16a34a;
-  --node-error: #dc2626;
-  --node-text: #0f172a;
-  --shadow-node: rgba(0, 0, 0, 0.08);
+  --success: #2d9d5a;
+  --error: #d94040;
+  --warning: #d4870a;
+  --border: #e4d5c3;
+  --node-bg: #fffcf7;
+  --node-active: #4f8fd4;
+  --node-done: #2d9d5a;
+  --node-error: #d94040;
+  --node-text: #2d1f10;
+  --shadow-node: rgba(120, 80, 30, 0.08);
 
   --phase-build: #4f46e5;
   --phase-build-dim: rgba(79, 70, 229, 0.06);
   --phase-build-border: rgba(79, 70, 229, 0.2);
-  --phase-execute: #d97706;
-  --phase-execute-dim: rgba(217, 119, 6, 0.06);
-  --phase-execute-border: rgba(217, 119, 6, 0.2);
-  --phase-observe: #16a34a;
-  --phase-observe-dim: rgba(22, 163, 74, 0.06);
-  --phase-observe-border: rgba(22, 163, 74, 0.2);
+  --phase-execute: #d4870a;
+  --phase-execute-dim: rgba(212, 135, 10, 0.06);
+  --phase-execute-border: rgba(212, 135, 10, 0.2);
+  --phase-observe: #2d9d5a;
+  --phase-observe-dim: rgba(45, 157, 90, 0.06);
+  --phase-observe-border: rgba(45, 157, 90, 0.2);
 
   color: var(--text-primary);
   background: var(--bg-primary);
@@ -128,10 +130,10 @@ pre {
 
 /* ReactFlow overrides for light mode */
 [data-theme="light"] .react-flow__edge-path {
-  stroke: #94a3b8;
+  stroke: #c4b5a0;
 }
 [data-theme="light"] .react-flow__background pattern circle {
-  fill: #cbd5e1;
+  fill: #e4d5c3;
 }
 
 /* Mobile responsive */
@@ -150,5 +152,11 @@ pre {
   /* Ensure tap targets are at least 44px */
   button {
     min-height: 36px;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
