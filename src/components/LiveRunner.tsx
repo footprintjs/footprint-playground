@@ -1481,7 +1481,7 @@ function ExplainableSection({
               />
             </div>
             {/* Toggle to open detail panel when collapsed */}
-            {!detailOpen && currentSnap && (
+            {!detailOpen && currentSnap && !subflowNav.isInSubflow && (
               <button
                 onClick={() => setDetailOpen(true)}
                 title="Show detail panel"
@@ -1508,8 +1508,8 @@ function ExplainableSection({
           </div>
         )}
 
-        {/* Collapsible detail panel with sub-tabs */}
-        {detailOpen && currentSnap && (
+        {/* Collapsible detail panel with sub-tabs — hidden when inside subflow */}
+        {detailOpen && currentSnap && !subflowNav.isInSubflow && (
           <div
             style={{
               width: "40%",
@@ -1731,8 +1731,8 @@ function ExplainableSection({
         )}
       </div>
 
-      {/* Collapsible Gantt timeline at bottom */}
-      {vizSnapshots && vizSnapshots.length > 0 && (
+      {/* Collapsible Gantt timeline at bottom — hidden when inside subflow */}
+      {vizSnapshots && vizSnapshots.length > 0 && !subflowNav.isInSubflow && (
         <div
           style={{
             borderTop: "1px solid var(--border)",
