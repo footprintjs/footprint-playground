@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 export function EndScreen() {
@@ -89,18 +90,38 @@ export function EndScreen() {
         transition={{ delay: 0.8 }}
         style={{ display: "flex", gap: 12 }}
       >
-        <a
-          href="https://github.com/footprintjs/footPrint"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          to="/samples"
           style={{
-            padding: "10px 24px",
+            padding: "12px 28px",
             background: "var(--accent)",
             color: "white",
             borderRadius: 8,
             fontSize: 14,
             fontWeight: 600,
             textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 4px 16px rgba(124, 108, 240, 0.3)",
+          }}
+        >
+          <span style={{ fontSize: 16 }}>&#9654;</span>
+          Try the Samples
+        </Link>
+        <a
+          href="https://github.com/footprintjs/footPrint"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "10px 24px",
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: "none",
+            border: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
             gap: 6,
