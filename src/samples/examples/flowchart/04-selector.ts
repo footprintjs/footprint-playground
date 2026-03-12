@@ -44,9 +44,23 @@ const loadPatient = async (scope: ScopeFacade) => {
 const triageConditions = (scope: ScopeFacade): string[] => {
   const patient = scope.getValue('patient') as any;
   const selected: string[] = [];
-  if (patient.vitals.fastingGlucose > 100) selected.push('diabetes');
-  if (parseInt(patient.vitals.bloodPressure) > 140) selected.push('hypertension');
-  if (patient.vitals.bmi > 30) selected.push('obesity');
+  const reasons: string[] = [];
+
+  if (patient.vitals.fastingGlucose > 100) {
+    selected.push('diabetes');
+    reasons.push(`fastingGlucose (${patient.vitals.fastingGlucose}) > 100`);
+  }
+  if (parseInt(patient.vitals.bloodPressure) > 140) {
+    selected.push('hypertension');
+    reasons.push(`systolic BP (${parseInt(patient.vitals.bloodPressure)}) > 140`);
+  }
+  if (patient.vitals.bmi > 30) {
+    selected.push('obesity');
+    reasons.push(`BMI (${patient.vitals.bmi}) > 30`);
+  }
+
+  scope.setValue('triageReasons', reasons);
+  scope.setValue('selectedScreenings', selected);
   return selected;
 };
 
@@ -105,13 +119,18 @@ const generateReport = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('LoadPatient', loadPatient)
-  .addSelectorFunction('Triage', triageConditions as any)
-    .addFunctionBranch('diabetes', 'DiabetesScreening', diabetesScreening)
-    .addFunctionBranch('hypertension', 'HypertensionCheck', hypertensionCheck)
-    .addFunctionBranch('obesity', 'ObesityAssessment', obesityAssessment)
+  .start('LoadPatient', loadPatient, undefined, 'Load patient record and vitals from database')
+  .addSelectorFunction('Triage', triageConditions as any, undefined,
+    'Select screenings based on patient vitals thresholds')
+    .addFunctionBranch('diabetes', 'DiabetesScreening', diabetesScreening,
+      'Assess diabetes risk from fasting glucose levels')
+    .addFunctionBranch('hypertension', 'HypertensionCheck', hypertensionCheck,
+      'Evaluate blood pressure and medication needs')
+    .addFunctionBranch('obesity', 'ObesityAssessment', obesityAssessment,
+      'Assess BMI severity and recommend nutritionist referral')
     .end()
-  .addFunction('GenerateReport', generateReport)
+  .addFunction('GenerateReport', generateReport, undefined,
+    'Generate screening report with findings and recommendations')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────

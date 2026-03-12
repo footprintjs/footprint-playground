@@ -34,8 +34,20 @@ const loadCustomer = async (scope: ScopeFacade) => {
 
 const classifyTier = (scope: ScopeFacade): string => {
   const customer = scope.getValue('customer') as any;
-  if (customer.plan === 'premium' && customer.totalSpend > 1000) return 'premium';
-  if (customer.plan === 'standard') return 'standard';
+  const plan = customer.plan;
+  const spend = customer.totalSpend;
+  scope.setValue('evaluatedPlan', plan);
+  scope.setValue('evaluatedSpend', spend);
+
+  if (plan === 'premium' && spend > 1000) {
+    scope.addDebugInfo('deciderRationale', `plan is "${plan}" and totalSpend ($${spend}) > $1000`);
+    return 'premium';
+  }
+  if (plan === 'standard') {
+    scope.addDebugInfo('deciderRationale', `plan is "${plan}"`);
+    return 'standard';
+  }
+  scope.addDebugInfo('deciderRationale', `plan is "${plan}" (not premium or standard), defaulting to trial`);
   return 'trial';
 };
 
@@ -72,14 +84,19 @@ const calculateTotal = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('LoadCustomer', loadCustomer)
-  .addDeciderFunction('ClassifyTier', classifyTier as any)
-    .addFunctionBranch('premium', 'ApplyLoyaltyDiscount', applyLoyaltyDiscount)
-    .addFunctionBranch('standard', 'SuggestUpgrade', suggestUpgrade)
-    .addFunctionBranch('trial', 'ShowOnboarding', showOnboarding)
+  .start('LoadCustomer', loadCustomer, undefined, 'Load customer profile from database')
+  .addDeciderFunction('ClassifyTier', classifyTier as any, undefined,
+    'Classify customer into premium, standard, or trial tier')
+    .addFunctionBranch('premium', 'ApplyLoyaltyDiscount', applyLoyaltyDiscount,
+      'Apply loyalty discount based on membership duration')
+    .addFunctionBranch('standard', 'SuggestUpgrade', suggestUpgrade,
+      'Offer 5% discount and suggest premium upgrade')
+    .addFunctionBranch('trial', 'ShowOnboarding', showOnboarding,
+      'Show welcome onboarding with 10% first-order discount')
     .setDefault('trial')
     .end()
-  .addFunction('CalculateTotal', calculateTotal)
+  .addFunction('CalculateTotal', calculateTotal, undefined,
+    'Calculate final amount after applying discount')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────

@@ -125,7 +125,20 @@ const assessRisk = async (scope: ScopeFacade) => {
 
 const loanDecider = (scope: ScopeFacade): string => {
   const tier = scope.getValue('riskTier') as string;
-  return tier === 'low' ? 'approved' : tier === 'high' ? 'rejected' : 'manual-review';
+  const factors = scope.getValue('riskFactors') as string[];
+
+  if (tier === 'low') {
+    scope.addDebugInfo('deciderRationale', 'riskTier is "low" — no risk factors found');
+    return 'approved';
+  }
+  if (tier === 'high') {
+    scope.addDebugInfo('deciderRationale',
+      `riskTier is "high" — ${factors.length} risk factor(s): ${factors.join('; ')}`);
+    return 'rejected';
+  }
+  scope.addDebugInfo('deciderRationale',
+    `riskTier is "${tier}" — needs human review`);
+  return 'manual-review';
 };
 
 const approveApplication = async (scope: ScopeFacade) => {

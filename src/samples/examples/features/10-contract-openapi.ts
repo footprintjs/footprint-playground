@@ -43,7 +43,12 @@ import { z } from 'zod';
 
   const classifyOrder = (scope: ScopeFacade): string => {
     const total = scope.getValue('total') as number;
-    return total > 100 ? 'large' : 'small';
+    if (total > 100) {
+      scope.addDebugInfo('deciderRationale', `total ($${total}) > $100 — qualifies for express shipping`);
+      return 'large';
+    }
+    scope.addDebugInfo('deciderRationale', `total ($${total}) <= $100 — standard shipping`);
+    return 'small';
   };
 
   const processLarge = async (scope: ScopeFacade) => {
@@ -58,12 +63,17 @@ import { z } from 'zod';
 
   // ── Build the flowchart ─────────────────────────────────────────────────
 
-  const chart = flowChart('ReceiveOrder', receiveOrder)
+  const chart = flowChart('ReceiveOrder', receiveOrder, undefined,
+    'Receive and validate incoming order')
     .setEnableNarrative()
-    .addFunction('CalculateTotal', calculateTotal)
-    .addDeciderFunction('ClassifyOrder', classifyOrder as any)
-      .addFunctionBranch('large', 'ProcessLargeOrder', processLarge)
-      .addFunctionBranch('small', 'ProcessSmallOrder', processSmall)
+    .addFunction('CalculateTotal', calculateTotal, undefined,
+      'Calculate subtotal, tax, and total')
+    .addDeciderFunction('ClassifyOrder', classifyOrder as any, undefined,
+      'Route order by size: large (>$100) gets express shipping')
+      .addFunctionBranch('large', 'ProcessLargeOrder', processLarge,
+        'Assign express shipping for large orders')
+      .addFunctionBranch('small', 'ProcessSmallOrder', processSmall,
+        'Assign standard shipping for small orders')
       .setDefault('small')
       .end()
     .build();
