@@ -94,23 +94,23 @@ const shipOrder = async (scope: ScopeFacade) => {
 
 // ── Build the Subflow ───────────────────────────────────────────────────
 
-const paymentSubflow = flowChart('ValidateCard', validateCard)
-  .addFunction('ChargeCard', chargeCard)
-  .addFunction('SendReceipt', sendReceipt)
+const paymentSubflow = flowChart('ValidateCard', validateCard, undefined, 'Verify card details with payment gateway')
+  .addFunction('ChargeCard', chargeCard, undefined, 'Charge the customer card')
+  .addFunction('SendReceipt', sendReceipt, undefined, 'Email transaction receipt')
   .build();
 
 // ── Build the Parent Flowchart ──────────────────────────────────────────
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('CreateOrder', createOrder)
+  .start('CreateOrder', createOrder, undefined, 'Initialize order and customer data')
   .addSubFlowChartNext('payment', paymentSubflow, 'ProcessPayment', {
     inputMapper: (parentScope: any) => ({
       orderTotal: parentScope.orderTotal,
       cardLast4: parentScope.cardLast4,
     }),
   })
-  .addFunction('ShipOrder', shipOrder)
+  .addFunction('ShipOrder', shipOrder, undefined, 'Create shipping label and dispatch')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────

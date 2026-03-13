@@ -9,7 +9,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { toVisualizationSnapshots, GanttTimeline } from "footprint-explainable-ui";
+import { toVisualizationSnapshots, GanttTimeline, StageDetailPanel } from "footprint-explainable-ui";
 import { useTheme } from "../ThemeContext";
 import { samples } from "../samples/catalog";
 import {
@@ -19,6 +19,7 @@ import {
 import {
   StageNode,
   SubflowBreadcrumb,
+  SubflowTree,
   useSubflowNavigation,
   specToReactFlow,
   type ExecutionOverlay,
@@ -60,7 +61,7 @@ function useFlowchartData(
     const subflowNodeName = subflowNav.currentSubflowNodeName;
     if (!subflowNodeName) return null;
     const parentSnap = vizSnapshots.find((s: any) => s.stageLabel === subflowNodeName);
-    const sfResult = parentSnap?.memory?.subflowResult as any;
+    const sfResult = (parentSnap as any)?.subflowResult as any;
     const tc = sfResult?.treeContext;
     if (!tc?.stageContexts) return null;
     try {
@@ -634,9 +635,6 @@ export function LiveRunner() {
                   <ExplainableSection
                     spec={buildTimeSpec}
                     vizSnapshots={vizSnapshots}
-                    stageDescriptions={
-                      result.buildTime?.stageDescriptions ?? {}
-                    }
                     theme={theme}
                   />
                 )}
@@ -1460,75 +1458,17 @@ function ResultSection({ result }: { result: ExecutionResult }) {
   );
 }
 
-// ─── Scope Diff Utility ──────────────────────────────────────────────────────
-
-interface DiffEntry {
-  key: string;
-  type: "added" | "removed" | "changed" | "unchanged";
-  oldValue?: unknown;
-  newValue?: unknown;
-}
-
-function computeScopeDiff(
-  prev: Record<string, unknown> | null,
-  curr: Record<string, unknown>
-): DiffEntry[] {
-  const entries: DiffEntry[] = [];
-  const allKeys = new Set([
-    ...Object.keys(prev ?? {}),
-    ...Object.keys(curr),
-  ]);
-
-  for (const key of allKeys) {
-    const inPrev = prev != null && key in prev;
-    const inCurr = key in curr;
-    const oldVal = prev?.[key];
-    const newVal = curr[key];
-
-    if (!inPrev && inCurr) {
-      entries.push({ key, type: "added", newValue: newVal });
-    } else if (inPrev && !inCurr) {
-      entries.push({ key, type: "removed", oldValue: oldVal });
-    } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-      entries.push({
-        key,
-        type: "changed",
-        oldValue: oldVal,
-        newValue: newVal,
-      });
-    } else {
-      entries.push({ key, type: "unchanged", newValue: newVal });
-    }
-  }
-
-  // Sort: changes first, then unchanged
-  const order = { added: 0, changed: 1, removed: 2, unchanged: 3 };
-  entries.sort((a, b) => order[a.type] - order[b.type]);
-  return entries;
-}
-
-function formatValue(v: unknown): string {
-  if (typeof v === "string") return `"${v}"`;
-  if (typeof v === "object" && v !== null)
-    return JSON.stringify(v, null, 2);
-  return String(v);
-}
-
 // ─── Explainable Tab ─────────────────────────────────────────────────────────
 // Side-by-side: flowchart (with overlay) | collapsible detail panel with sub-tabs
 // Slider time-travel. Gantt at bottom.
 
-type DetailTab = "stage" | "diff" | "semantic";
-
 function ExplainableSection({
   spec,
   vizSnapshots,
-  stageDescriptions,
   theme,
 }: {
   spec: SpecNode | null;
   vizSnapshots: any[] | null;
-  stageDescriptions: Record<string, string>;
   theme: string;
 }) {
   const {
@@ -1541,8 +1481,8 @@ function ExplainableSection({
   } = useFlowchartData(spec, vizSnapshots);
 
   const [detailOpen, setDetailOpen] = useState(true);
-  const [detailTab, setDetailTab] = useState<DetailTab>("stage");
   const [ganttOpen, setGanttOpen] = useState(true);
+  const [treeOpen, setTreeOpen] = useState(true);
   const [playing, setPlaying] = useState(false);
   const playRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const total = activeSnapshots?.length ?? 0;
@@ -1572,17 +1512,6 @@ function ExplainableSection({
     };
   }, [playing, snapshotIdx, activeSnapshots, total, onSnapshotChange]);
 
-  // Scope diff between previous and current snapshot
-  const scopeDiff = useMemo(() => {
-    if (!activeSnapshots || !currentSnap) return null;
-    const prevSnap =
-      snapshotIdx > 0 ? activeSnapshots[snapshotIdx - 1] : null;
-    return computeScopeDiff(
-      prevSnap?.memory ?? null,
-      currentSnap.memory ?? {}
-    );
-  }, [activeSnapshots, currentSnap, snapshotIdx]);
-
   // Click a flowchart node → drill into subflow, or jump to that stage's snapshot
   const handleNodeClick = useCallback(
     (_: unknown, node: { id: string }) => {
@@ -1608,8 +1537,45 @@ function ExplainableSection({
         overflow: "hidden",
       }}
     >
-      {/* Main area: flowchart + collapsible detail panel */}
+      {/* Main area: tree + flowchart + collapsible detail panel */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* SubflowTree sidebar */}
+        {spec && treeOpen && (
+          <div style={{ width: 200, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 0 0", flexShrink: 0 }}>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setTreeOpen(false)}
+                title="Hide tree"
+                style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px 6px", fontSize: 10 }}
+              >
+                ◀
+              </button>
+            </div>
+            <SubflowTree
+              spec={spec}
+              activeStage={currentSnap?.stageLabel ?? null}
+              doneStages={activeSnapshots ? new Set(activeSnapshots.slice(0, snapshotIdx).map((s: any) => s.stageLabel)) : undefined}
+              onNodeSelect={(name, isSf) => {
+                if (isSf) subflowNav.handleNodeClick(name);
+                else if (activeSnapshots) {
+                  const idx = activeSnapshots.findIndex((s: any) => s.stageLabel === name);
+                  if (idx >= 0) onSnapshotChange(idx);
+                }
+              }}
+              style={{ flex: 1, overflow: "auto" }}
+            />
+          </div>
+        )}
+        {spec && !treeOpen && (
+          <button
+            onClick={() => setTreeOpen(true)}
+            title="Show pipeline tree"
+            style={{ width: 28, flexShrink: 0, borderRight: "1px solid var(--border)", background: "var(--bg-secondary)", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            ▶
+          </button>
+        )}
         {/* Flowchart — uses OverlayFlowChart to update nodes/edges in-place */}
         {overlayFlowData && (
           <div
@@ -1822,66 +1788,15 @@ function ExplainableSection({
               )}
             </div>
 
-            {/* Detail sub-tabs */}
-            <div
-              style={{
-                display: "flex",
-                borderBottom: "1px solid var(--border)",
-                flexShrink: 0,
-                padding: "0 12px",
-              }}
-            >
-              {(
-                [
-                  { id: "stage", label: "Stage" },
-                  { id: "diff", label: "Diff" },
-                  { id: "semantic", label: "Semantic" },
-                ] as const
-              ).map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setDetailTab(t.id)}
-                  style={{
-                    padding: "6px 12px",
-                    border: "none",
-                    borderBottom:
-                      detailTab === t.id
-                        ? "2px solid var(--accent)"
-                        : "2px solid transparent",
-                    background: "transparent",
-                    color:
-                      detailTab === t.id
-                        ? "var(--accent)"
-                        : "var(--text-muted)",
-                    fontSize: 11,
-                    fontWeight: detailTab === t.id ? 600 : 400,
-                    cursor: "pointer",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
-              {detailTab === "stage" && (
-                <StageDetailView
-                  snap={currentSnap}
-                  description={
-                    stageDescriptions[currentSnap.stageName]
-                  }
-                />
-              )}
-              {detailTab === "diff" && scopeDiff && (
-                <DiffView diff={scopeDiff} />
-              )}
-              {detailTab === "semantic" && (
-                <SemanticView snap={currentSnap} />
-              )}
-            </div>
+            {/* StageDetailPanel with built-in Simple/Dev toggle */}
+            {activeSnapshots && activeSnapshots.length > 0 && (
+              <StageDetailPanel
+                snapshots={activeSnapshots}
+                selectedIndex={snapshotIdx}
+                showToggle
+                style={{ flex: 1, overflow: "auto" }}
+              />
+            )}
           </div>
         )}
       </div>
@@ -1926,256 +1841,6 @@ function ExplainableSection({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Detail Sub-views ────────────────────────────────────────────────────────
-
-function StageDetailView({
-  snap,
-  description,
-}: {
-  snap: any;
-  description?: string;
-}) {
-  return (
-    <>
-      {/* Build-time description */}
-      {description && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            marginBottom: 10,
-            padding: "8px 10px",
-            background: "var(--bg-tertiary)",
-            borderRadius: 6,
-            borderLeft: "3px solid var(--accent)",
-            lineHeight: 1.5,
-          }}
-        >
-          <MiniLabel>Description</MiniLabel>
-          {description}
-        </div>
-      )}
-
-      {/* Runtime narrative */}
-      {snap.narrative && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-primary)",
-            marginBottom: 10,
-            padding: "8px 10px",
-            background: "var(--bg-secondary)",
-            borderRadius: 6,
-            borderLeft: "3px solid #22c55e",
-            lineHeight: 1.5,
-          }}
-        >
-          <MiniLabel>What Happened</MiniLabel>
-          {snap.narrative}
-        </div>
-      )}
-
-      {/* Memory state */}
-      <MiniLabel>Memory</MiniLabel>
-      <pre
-        style={{
-          fontSize: 11,
-          fontFamily: "'JetBrains Mono', monospace",
-          color: "var(--text-primary)",
-          background: "var(--bg-secondary)",
-          padding: 8,
-          borderRadius: 6,
-          overflow: "auto",
-          margin: 0,
-        }}
-      >
-        {JSON.stringify(snap.memory, null, 2)}
-      </pre>
-    </>
-  );
-}
-
-function DiffView({ diff }: { diff: DiffEntry[] }) {
-  const hasChanges = diff.some((d) => d.type !== "unchanged");
-
-  return (
-    <>
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--text-muted)",
-          marginBottom: 8,
-        }}
-      >
-        Scope changes at this stage
-      </div>
-
-      {!hasChanges && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-muted)",
-            fontStyle: "italic",
-            padding: 8,
-          }}
-        >
-          No scope changes
-        </div>
-      )}
-
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11,
-        }}
-      >
-        {diff.map((entry) => {
-          if (entry.type === "unchanged") return null;
-
-          return (
-            <div
-              key={entry.key}
-              style={{
-                marginBottom: 6,
-                padding: "6px 8px",
-                borderRadius: 4,
-                background:
-                  entry.type === "added"
-                    ? "rgba(34, 197, 94, 0.1)"
-                    : entry.type === "removed"
-                      ? "rgba(239, 68, 68, 0.1)"
-                      : "rgba(234, 179, 8, 0.1)",
-                borderLeft: `3px solid ${
-                  entry.type === "added"
-                    ? "#22c55e"
-                    : entry.type === "removed"
-                      ? "#ef4444"
-                      : "#eab308"
-                }`,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 600,
-                  color:
-                    entry.type === "added"
-                      ? "#22c55e"
-                      : entry.type === "removed"
-                        ? "#ef4444"
-                        : "#eab308",
-                  marginBottom: 2,
-                }}
-              >
-                {entry.type === "added" && "+ "}
-                {entry.type === "removed" && "- "}
-                {entry.type === "changed" && "~ "}
-                {entry.key}
-              </div>
-
-              {entry.type === "changed" && (
-                <>
-                  <div style={{ color: "#ef4444", opacity: 0.8 }}>
-                    - {formatValue(entry.oldValue)}
-                  </div>
-                  <div style={{ color: "#22c55e" }}>
-                    + {formatValue(entry.newValue)}
-                  </div>
-                </>
-              )}
-              {entry.type === "added" && (
-                <div style={{ color: "#22c55e" }}>
-                  {formatValue(entry.newValue)}
-                </div>
-              )}
-              {entry.type === "removed" && (
-                <div style={{ color: "#ef4444", opacity: 0.8 }}>
-                  {formatValue(entry.oldValue)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </>
-  );
-}
-
-function SemanticView({ snap }: { snap: any }) {
-  return (
-    <>
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--text-muted)",
-          marginBottom: 8,
-        }}
-      >
-        Scope-level recorded data (audit trail)
-      </div>
-
-      {/* Narrative for this stage */}
-      {snap.narrative && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-primary)",
-            marginBottom: 10,
-            padding: "8px 10px",
-            background: "var(--bg-secondary)",
-            borderRadius: 6,
-            lineHeight: 1.6,
-          }}
-        >
-          {snap.narrative}
-        </div>
-      )}
-
-      {/* Memory keys as semantic entries */}
-      <MiniLabel>Scope State After Stage</MiniLabel>
-      {Object.entries(snap.memory ?? {}).map(([key, value]) => (
-        <div
-          key={key}
-          style={{
-            marginBottom: 4,
-            padding: "4px 8px",
-            borderRadius: 4,
-            background: "var(--bg-secondary)",
-            fontSize: 11,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-            {key}
-          </span>
-          <span style={{ color: "var(--text-muted)" }}> = </span>
-          <span style={{ color: "var(--text-primary)" }}>
-            {typeof value === "object"
-              ? JSON.stringify(value)
-              : String(value)}
-          </span>
-        </div>
-      ))}
-    </>
-  );
-}
-
-function MiniLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 10,
-        color: "var(--text-muted)",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 4,
-      }}
-    >
-      {children}
     </div>
   );
 }
