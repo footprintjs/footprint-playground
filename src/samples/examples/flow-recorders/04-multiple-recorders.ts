@@ -27,14 +27,14 @@ function buildLoopChart(iterations: number) {
   return flowChart('Init', async (scope: ScopeFacade) => {
     scope.setValue('counter', 0);
     scope.setValue('target', iterations);
-  })
+  }, 'init')
     .addFunction('Process', async (scope: ScopeFacade) => {
       const counter = scope.getValue('counter') as number;
       scope.setValue('counter', counter + 1);
       if (counter + 1 < (scope.getValue('target') as number)) {
-        return { name: 'loop-back', next: { name: 'Process', id: 'Process' } };
+        return { name: 'loop-back', next: { name: 'Process', id: 'process' } };
       }
-    }, 'Process')
+    }, 'process')
     .build();
 }
 

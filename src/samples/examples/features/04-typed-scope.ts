@@ -52,9 +52,9 @@ const diagnose = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('Intake', intake)
-  .addFunction('ConvertTemp', convertTemp)
-  .addFunction('Diagnose', diagnose)
+  .start('Intake', intake, 'intake')
+  .addFunction('ConvertTemp', convertTemp, 'convert-temp')
+  .addFunction('Diagnose', diagnose, 'diagnose')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────

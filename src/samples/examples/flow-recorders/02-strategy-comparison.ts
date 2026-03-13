@@ -42,7 +42,7 @@ function buildSyncChart(totalBatches: number) {
       scope.setValue('totalBatches', totalBatches);
       scope.setValue('errors', 0);
     },
-    'FetchConfig',
+    'fetch-config',
     'fetch remote API configuration and credentials',
   )
     .addFunction(
@@ -50,7 +50,7 @@ function buildSyncChart(totalBatches: number) {
       async (scope: ScopeFacade) => {
         scope.setValue('batchSize', 100);
       },
-      'PrepareBatches',
+      'prepare-batches',
       'split the dataset into batches of 100 records',
     )
     .addFunction(
@@ -67,11 +67,11 @@ function buildSyncChart(totalBatches: number) {
         if (processed + 1 < totalBatches) {
           return {
             name: 'next-batch',
-            next: { name: 'ProcessBatch', id: 'ProcessBatch' },
+            next: { name: 'ProcessBatch', id: 'process-batch' },
           };
         }
       },
-      'ProcessBatch',
+      'process-batch',
       'sync the next batch of records to the remote API',
     )
     .addFunction(
@@ -83,7 +83,7 @@ function buildSyncChart(totalBatches: number) {
           `Synced ${totalBatches} batches with ${errors} failures`,
         );
       },
-      'Finalize',
+      'finalize',
       'generate sync report and clean up resources',
     )
     .build();

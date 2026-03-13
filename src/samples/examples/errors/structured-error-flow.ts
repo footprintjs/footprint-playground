@@ -34,7 +34,7 @@ async function demoStructuredErrorRecorder() {
   // Build a pipeline that validates user input
   const chart = flowChart('ReceiveOrder', async (scope: ScopeFacade) => {
     scope.setValue('rawOrder', { customerId: 'C1', items: ['laptop'], total: -50 });
-  })
+  }, 'receive-order')
     .addFunction('ValidateOrder', async (scope: ScopeFacade) => {
       const order = scope.getValue('rawOrder') as Record<string, unknown>;
 
@@ -55,8 +55,8 @@ async function demoStructuredErrorRecorder() {
       if (issues.length > 0) {
         throw new InputValidationError('Order validation failed', issues);
       }
-    })
-    .addFunction('ProcessPayment', async () => 'paid')
+    }, 'validate-order')
+    .addFunction('ProcessPayment', async () => 'paid', 'process-payment')
     .build();
 
   // Custom recorder that extracts structured error details
@@ -107,15 +107,15 @@ async function demoNarrativeEnrichment() {
 
   const chart = flowChart('FetchData', async (scope: ScopeFacade) => {
     scope.setValue('payload', { name: 'Bob', age: -5, email: '' });
-  })
+  }, 'fetch-data')
     .addFunction('Validate', async (scope: ScopeFacade) => {
       const payload = scope.getValue('payload') as Record<string, unknown>;
       throw new InputValidationError('Validation failed', [
         { path: ['age'], message: 'Must be positive', code: 'too_small' },
         { path: ['email'], message: 'Cannot be empty', code: 'too_small' },
       ]);
-    })
-    .addFunction('Transform', async () => 'transformed')
+    }, 'validate')
+    .addFunction('Transform', async () => 'transformed', 'transform')
     .setEnableNarrative()
     .build();
 

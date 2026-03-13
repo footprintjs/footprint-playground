@@ -34,16 +34,16 @@ const validationChart = new FlowChartBuilder()
       scope.setValue('reason', `Amount $${amount.toLocaleString()} exceeds $50,000 limit`);
       breakFn(); // ← stop here, don't process further
     }
-  })
+  }, 'validate-input')
   .addFunction('ProcessPayment', async (scope: ScopeFacade) => {
     // This never runs when breakFn is called
     scope.setValue('processed', true);
     scope.setValue('transactionId', 'TXN-' + Date.now());
-  })
+  }, 'process-payment')
   .addFunction('SendConfirmation', async (scope: ScopeFacade) => {
     // This never runs either
     scope.setValue('emailSent', true);
-  })
+  }, 'send-confirmation')
   .build();
 
 const executor1 = new FlowChartExecutor(validationChart);
@@ -62,7 +62,7 @@ const budgetChart = new FlowChartBuilder()
     scope.setValue('budget', 100);
     scope.setValue('spent', 0);
     scope.setValue('items', [] as string[]);
-  })
+  }, 'init')
   .addFunction('BuyItem1', async (scope: ScopeFacade, breakFn: () => void) => {
     const spent = (scope.getValue('spent') as number) + 30;
     scope.setValue('spent', spent);
@@ -73,7 +73,7 @@ const budgetChart = new FlowChartBuilder()
       scope.setValue('budgetExhausted', true);
       breakFn();
     }
-  })
+  }, 'buy-item-1')
   .addFunction('BuyItem2', async (scope: ScopeFacade, breakFn: () => void) => {
     const spent = (scope.getValue('spent') as number) + 45;
     scope.setValue('spent', spent);
@@ -84,7 +84,7 @@ const budgetChart = new FlowChartBuilder()
       scope.setValue('budgetExhausted', true);
       breakFn();
     }
-  })
+  }, 'buy-item-2')
   .addFunction('BuyItem3', async (scope: ScopeFacade, breakFn: () => void) => {
     const spent = (scope.getValue('spent') as number) + 50;
     scope.setValue('spent', spent);
@@ -95,12 +95,12 @@ const budgetChart = new FlowChartBuilder()
       scope.setValue('budgetExhausted', true);
       breakFn();
     }
-  })
+  }, 'buy-item-3')
   .addFunction('BuyItem4', async (scope: ScopeFacade) => {
     // This won't run — budget exhausted at Item 3
     const items = scope.getValue('items') as string[];
     scope.setValue('items', [...items, 'Widget D ($25)']);
-  })
+  }, 'buy-item-4')
   .build();
 
 const executor2 = new FlowChartExecutor(budgetChart);

@@ -84,8 +84,8 @@ const calculateTotal = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('LoadCustomer', loadCustomer, undefined, 'Load customer profile from database')
-  .addDeciderFunction('ClassifyTier', classifyTier as any, undefined,
+  .start('LoadCustomer', loadCustomer, 'load-customer', 'Load customer profile from database')
+  .addDeciderFunction('ClassifyTier', classifyTier as any, 'classify-tier',
     'Classify customer into premium, standard, or trial tier')
     .addFunctionBranch('premium', 'ApplyLoyaltyDiscount', applyLoyaltyDiscount,
       'Apply loyalty discount based on membership duration')
@@ -95,7 +95,7 @@ const chart = new FlowChartBuilder()
       'Show welcome onboarding with 10% first-order discount')
     .setDefault('trial')
     .end()
-  .addFunction('CalculateTotal', calculateTotal, undefined,
+  .addFunction('CalculateTotal', calculateTotal, 'calculate-total',
     'Calculate final amount after applying discount')
   .build();
 

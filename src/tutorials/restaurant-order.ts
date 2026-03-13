@@ -45,7 +45,7 @@ const buildCode = `import { flowChart } from "footprintjs";
 
 const chart = flowChart("Take Order", (scope) => {
   scope.set("order", { burger: 1, soda: 1 });
-}, "takeOrder", undefined,
+}, "take-order",
 "Receive the customer's food order")`;
 
 const buildStep1Code = `${buildCode}`;
@@ -53,16 +53,16 @@ const buildStep1Code = `${buildCode}`;
 const buildStep2Code = `${buildCode}
 .addFunction("Validate Payment", (scope) => {
   scope.set("paid", true);
-}, "validatePayment",
+}, "validate-payment",
 "Confirm payment for the order")`;
 
 const buildStep3Code = `${buildStep2Code}
 .addListOfFunction([
-  { id: "cookFood", name: "Cook Food",
+  { id: "cook-food", name: "Cook Food",
     fn: (scope) => {
       scope.set("cookFood", "Burger cooked");
   }},
-  { id: "makeDrink", name: "Make Drink",
+  { id: "make-drink", name: "Make Drink",
     fn: (scope) => {
       scope.set("makeDrink", "Soda poured");
   }},
@@ -71,14 +71,12 @@ const buildStep3Code = `${buildStep2Code}
 const buildStep4Code = `${buildStep3Code}
 .addFunction("Assemble", (scope) => {
   scope.set("assembled", true);
-}, "assemble",
-"Pack all items into a bag")`;
+}, "assemble", "Pack all items into a bag")`;
 
 const buildStep5Code = `${buildStep4Code}
 .addFunction("Deliver", (scope) => {
   scope.set("delivered", true);
-}, "deliver",
-"Hand the order to the customer")
+}, "deliver", "Hand the order to the customer")
 .build();`;
 
 // ──────────────────────────────────────────

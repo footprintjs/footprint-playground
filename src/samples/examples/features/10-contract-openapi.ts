@@ -63,12 +63,12 @@ import { z } from 'zod';
 
   // ── Build the flowchart ─────────────────────────────────────────────────
 
-  const chart = flowChart('ReceiveOrder', receiveOrder, undefined,
+  const chart = flowChart('ReceiveOrder', receiveOrder, 'receive-order',
     'Receive and validate incoming order')
     .setEnableNarrative()
-    .addFunction('CalculateTotal', calculateTotal, undefined,
+    .addFunction('CalculateTotal', calculateTotal, 'calculate-total',
       'Calculate subtotal, tax, and total')
-    .addDeciderFunction('ClassifyOrder', classifyOrder as any, undefined,
+    .addDeciderFunction('ClassifyOrder', classifyOrder as any, 'classify-order',
       'Route order by size: large (>$100) gets express shipping')
       .addFunctionBranch('large', 'ProcessLargeOrder', processLarge,
         'Assign express shipping for large orders')

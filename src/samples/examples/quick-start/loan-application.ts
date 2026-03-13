@@ -161,17 +161,17 @@ const manualReview = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('ReceiveApplication', receiveApplication, undefined,
+  .start('ReceiveApplication', receiveApplication, 'receive-application',
     'Ingest the loan application and store applicant data')
-  .addFunction('PullCreditReport', pullCreditReport, undefined,
+  .addFunction('PullCreditReport', pullCreditReport, 'pull-credit-report',
     'Retrieve credit score and flag any credit issues')
-  .addFunction('CalculateDTI', calculateDTI, undefined,
+  .addFunction('CalculateDTI', calculateDTI, 'calculate-dti',
     'Compute debt-to-income ratio and flag excessive debt')
-  .addFunction('VerifyEmployment', verifyEmployment, undefined,
+  .addFunction('VerifyEmployment', verifyEmployment, 'verify-employment',
     'Confirm employment status and years of experience')
-  .addFunction('AssessRisk', assessRisk, undefined,
+  .addFunction('AssessRisk', assessRisk, 'assess-risk',
     'Evaluate all flags and credit data to determine risk tier')
-  .addDeciderFunction('LoanDecision', loanDecider as any, undefined,
+  .addDeciderFunction('LoanDecision', loanDecider as any, 'loan-decision',
     'Route to approval, rejection, or manual review based on risk tier')
     .addFunctionBranch('approved', 'ApproveApplication', approveApplication,
       'Generate approval letter with loan terms')

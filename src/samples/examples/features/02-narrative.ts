@@ -16,7 +16,7 @@ import { flowChart, FlowChartExecutor, ScopeFacade } from 'footprint';
 const chart = flowChart('Ingest', async (scope: ScopeFacade) => {
   scope.setValue('temperature', 38.5);
   scope.setValue('unit', 'celsius');
-})
+}, 'ingest')
   .setEnableNarrative()
   .addFunction('Convert', async (scope: ScopeFacade) => {
     const temp = scope.getValue('temperature') as number;
@@ -25,11 +25,11 @@ const chart = flowChart('Ingest', async (scope: ScopeFacade) => {
       scope.setValue('temperatureF', temp * 1.8 + 32);
       scope.setValue('converted', true);
     }
-  })
+  }, 'convert')
   .addFunction('Classify', async (scope: ScopeFacade) => {
     const tempF = scope.getValue('temperatureF') as number;
     scope.setValue('status', tempF > 100.4 ? 'fever' : 'normal');
-  })
+  }, 'classify')
   .build();
 
 const executor = new FlowChartExecutor(chart);

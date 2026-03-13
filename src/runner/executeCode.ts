@@ -7,6 +7,7 @@ export interface RuntimeStageNode {
   name?: string;
   isDecider?: boolean;
   isFork?: boolean;
+  stageWrites?: Record<string, unknown>;
   logs: Record<string, unknown>;
   errors: Record<string, unknown>;
   metrics: Record<string, unknown>;
@@ -99,8 +100,8 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
   // Also monkey-patch the flowChart() shorthand — it creates a FlowChartBuilder internally
   const proxiedFlowChart = (
     name: string,
-    fn?: any,
-    id?: string,
+    fn: any,
+    id: string,
     buildTimeExtractor?: any,
     description?: string
   ) => {
@@ -231,6 +232,17 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   try {
     const snapshot = (capturedExecutor as any).getSnapshot();
+
+    // Populate narrative from executor (getNarrative() combines flow + data narratives)
+    try {
+      const lines: string[] = (capturedExecutor as any).getNarrative?.() ?? [];
+      if (lines.length > 0) {
+        narrative.push(...lines);
+      }
+    } catch {
+      // Narrative is optional — don't fail the result
+    }
+
     return { snapshot, logs, narrative, buildTime: capturedBuildTime };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

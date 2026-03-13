@@ -76,12 +76,12 @@ const finalizeOrder = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('LoadOrder', loadOrder)
+  .start('LoadOrder', loadOrder, 'load-order')
   .addListOfFunction([
     { id: 'CheckInventory', name: 'CheckInventory', fn: checkInventory },
     { id: 'RunFraudCheck', name: 'RunFraudCheck', fn: runFraudCheck },
   ])
-  .addFunction('FinalizeOrder', finalizeOrder)
+  .addFunction('FinalizeOrder', finalizeOrder, 'finalize-order')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────

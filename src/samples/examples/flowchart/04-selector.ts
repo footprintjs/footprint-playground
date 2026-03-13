@@ -119,8 +119,8 @@ const generateReport = async (scope: ScopeFacade) => {
 
 const chart = new FlowChartBuilder()
   .setEnableNarrative()
-  .start('LoadPatient', loadPatient, undefined, 'Load patient record and vitals from database')
-  .addSelectorFunction('Triage', triageConditions as any, undefined,
+  .start('LoadPatient', loadPatient, 'load-patient', 'Load patient record and vitals from database')
+  .addSelectorFunction('Triage', triageConditions as any, 'triage',
     'Select screenings based on patient vitals thresholds')
     .addFunctionBranch('diabetes', 'DiabetesScreening', diabetesScreening,
       'Assess diabetes risk from fasting glucose levels')
@@ -129,7 +129,7 @@ const chart = new FlowChartBuilder()
     .addFunctionBranch('obesity', 'ObesityAssessment', obesityAssessment,
       'Assess BMI severity and recommend nutritionist referral')
     .end()
-  .addFunction('GenerateReport', generateReport, undefined,
+  .addFunction('GenerateReport', generateReport, 'generate-report',
     'Generate screening report with findings and recommendations')
   .build();
 

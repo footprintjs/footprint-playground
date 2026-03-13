@@ -80,10 +80,10 @@ const evaluateResult = async (scope: ScopeFacade, breakFn: () => void) => {
 
 // ── Flowchart ───────────────────────────────────────────────────────────
 
-const chart = flowChart('InitRetry', initRetry)
+const chart = flowChart('InitRetry', initRetry, 'init-retry')
   .setEnableNarrative()
-  .addFunction('CallAPI', callAPI)
-  .addFunction('EvaluateResult', evaluateResult)
+  .addFunction('CallAPI', callAPI, 'call-api')
+  .addFunction('EvaluateResult', evaluateResult, 'evaluate-result')
   .loopTo('CallAPI')
   .build();
 

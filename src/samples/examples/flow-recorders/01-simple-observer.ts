@@ -23,15 +23,15 @@ import {
 const chart = flowChart('Validate', async (scope: ScopeFacade) => {
   scope.setValue('input', 'hello');
   scope.setValue('valid', true);
-})
+}, 'validate')
   .addFunction('Process', async (scope: ScopeFacade) => {
     const input = scope.getValue('input') as string;
     scope.setValue('result', input.toUpperCase());
-  })
+  }, 'process')
   .addFunction('Output', async (scope: ScopeFacade) => {
     const result = scope.getValue('result');
     scope.setValue('output', `Done: ${result}`);
-  })
+  }, 'output')
   .build();
 
 // ── Attach a simple FlowRecorder ─────────────────────────────────────────

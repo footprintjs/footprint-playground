@@ -25,7 +25,7 @@ async function demoSchemaValidation() {
   const chart = flowChart('Process', async (scope: ScopeFacade) => {
     // This stage should NEVER execute with invalid input
     console.log('  Stage executed — this should not happen!');
-  })
+  }, 'process')
     .setInputSchema(z.object({
       amount: z.number().positive(),
       email: z.string().email(),
@@ -100,7 +100,7 @@ async function demoReadonlyGuards() {
     } catch (e: any) {
       console.log(`  ❌ Delete blocked: ${e.message}`);
     }
-  }).build();
+  }, 'process').build();
 
   const executor = new FlowChartExecutor(chart);
   await executor.run({ input: { name: 'Alice' } });
@@ -144,7 +144,7 @@ async function demoFrozenArgs() {
     // ✅ Same cached reference every time (zero-allocation)
     const args2 = scope.getArgs();
     console.log(`  ✅ Cached: getArgs() === getArgs() → ${args === args2}`);
-  }).build();
+  }, 'process').build();
 
   const executor = new FlowChartExecutor(chart);
   await executor.run({
@@ -168,12 +168,12 @@ async function demoBeforeAfter() {
     // Stage1 mutates the shared closure variable
     sharedData.score = 999;
     scope.setValue('done1', true);
-  })
+  }, 'stage-1')
     .addFunction('Stage2', async (scope: ScopeFacade) => {
       // Stage2 sees Stage1's mutation — silent data corruption!
       console.log(`    Stage2 sees score = ${sharedData.score} (corrupted by Stage1!)`);
       scope.setValue('done2', true);
-    })
+    }, 'stage-2')
     .build();
 
   const oldExecutor = new FlowChartExecutor(oldChart);
@@ -188,13 +188,13 @@ async function demoBeforeAfter() {
     console.log(`    Stage1 reads score = ${score}`);
     // Cannot mutate input — write to a SEPARATE key instead
     scope.setValue('computedScore', score + 100);
-  })
+  }, 'stage-1')
     .addFunction('Stage2', async (scope: ScopeFacade) => {
       const { score } = scope.getArgs<{ score: number; name: string }>();
       console.log(`    Stage2 reads score = ${score} (untouched — safe!)`);
       const computedScore = scope.getValue('computedScore') as number;
       console.log(`    Stage2 reads computedScore = ${computedScore} (from Stage1)`);
-    })
+    }, 'stage-2')
     .build();
 
   const newExecutor = new FlowChartExecutor(newChart);

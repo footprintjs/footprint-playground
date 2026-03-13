@@ -66,10 +66,10 @@ const sendWelcomeEmail = async (scope: ScopeFacade) => {
 
 // ── Flowchart ───────────────────────────────────────────────────────────
 
-const chart = flowChart('FetchUser', fetchUser)
+const chart = flowChart('FetchUser', fetchUser, 'fetch-user')
   .setEnableNarrative()
-  .addFunction('EnrichProfile', enrichProfile)
-  .addFunction('SendWelcomeEmail', sendWelcomeEmail)
+  .addFunction('EnrichProfile', enrichProfile, 'enrich-profile')
+  .addFunction('SendWelcomeEmail', sendWelcomeEmail, 'send-welcome-email')
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────
