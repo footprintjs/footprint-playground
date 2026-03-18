@@ -10,6 +10,7 @@ import deciderCode from "./examples/flowchart/03-decider.ts?raw";
 import selectorCode from "./examples/flowchart/04-selector.ts?raw";
 import subflowCode from "./examples/flowchart/05-subflow.ts?raw";
 import loopsCode from "./examples/flowchart/06-loops.ts?raw";
+import lazySubflowCode from "./examples/flowchart/08-lazy-subflow.ts?raw";
 
 // Features
 import valuesCode from "./examples/features/01-values.ts?raw";
@@ -125,6 +126,19 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Retry an unstable API with exponential backoff using loopTo and breakFn.",
     code: loopsCode,
+  },
+  {
+    id: "lazy-subflow",
+    name: "Lazy Subflow",
+    category: "Flowchart",
+    description:
+      "Graph-of-services pattern — 3 lazy service branches, only selected ones resolve and execute.",
+    code: lazySubflowCode,
+    defaultInput: JSON.stringify(
+      { requiredServices: ["auth", "payment"] },
+      null,
+      2,
+    ),
   },
 
   // ── Features ─────────────────────────────────────────────────────────────
