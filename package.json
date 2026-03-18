@@ -12,8 +12,8 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
-    "footprint-explainable-ui": "file:../explainable-ui",
-    "footprintjs": "file:../footPrint",
+    "footprint-explainable-ui": "^0.8.1",
+    "footprintjs": "^0.15.2",
     "framer-motion": "^12.35.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
