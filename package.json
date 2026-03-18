@@ -12,7 +12,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
-    "footprint-explainable-ui": "^0.7.4",
+    "footprint-explainable-ui": "^0.7.5",
     "footprintjs": "^0.15.0",
     "framer-motion": "^12.35.1",
     "react": "^19.2.0",

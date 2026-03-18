@@ -41,6 +41,8 @@ export interface ExecutionResult {
   logs: string[];
   /** Narrative lines from CombinedNarrativeBuilder (separate from console logs) */
   narrative: string[];
+  /** Structured narrative entries with type/depth/stageName for semantic rendering */
+  narrativeEntries?: Array<{ type: string; text: string; depth: number; stageName?: string; stepNumber?: number }>;
   /** Build-time metadata captured from the builder */
   buildTime: BuildTimeInfo | null;
   error?: string;
@@ -243,7 +245,15 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
       // Narrative is optional — don't fail the result
     }
 
-    return { snapshot, logs, narrative, buildTime: capturedBuildTime };
+    // Capture structured narrative entries for ExplainableShell
+    let narrativeEntries: ExecutionResult['narrativeEntries'];
+    try {
+      narrativeEntries = (capturedExecutor as any).getNarrativeEntries?.() ?? undefined;
+    } catch {
+      // Optional — don't fail
+    }
+
+    return { snapshot, logs, narrative, narrativeEntries, buildTime: capturedBuildTime };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
