@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import {
@@ -7,8 +7,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { toVisualizationSnapshots, ExplainableShell } from "footprint-explainable-ui";
-import type { NarrativeEntry } from "footprint-explainable-ui";
+import { ExplainableShell } from "footprint-explainable-ui";
 import { useTheme } from "../ThemeContext";
 import { samples } from "../samples/catalog";
 import {
@@ -18,7 +17,6 @@ import {
 import {
   StageNode,
   SubflowBreadcrumb,
-  TracedFlowchartView,
   useSubflowNavigation,
   type SpecNode,
 } from "footprint-explainable-ui/flowchart";
@@ -102,18 +100,10 @@ export function LiveRunner() {
     }
   }, [code, inputJson, isMobile]);
 
-  // Derive visualization snapshots for time-travel
-  const vizSnapshots = useMemo(() => {
-    if (!result?.snapshot) return null;
-    try {
-      return toVisualizationSnapshots(result.snapshot as any);
-    } catch {
-      return null;
-    }
-  }, [result]);
-
-  // Build-time flowchart with subflow drill-down (plain gray — no execution overlay)
-  const buildTimeSpec = (result?.buildTime?.spec as unknown as SpecNode) ?? null;
+  // Prefer runtime structure (has resolved lazy subflows for drill-down) over build-time spec
+  const buildTimeSpec = (result?.runtimeStructure as unknown as SpecNode)
+    ?? (result?.buildTime?.spec as unknown as SpecNode)
+    ?? null;
   const buildSubflow = useSubflowNavigation(buildTimeSpec);
   const buildTimeFlowData = buildTimeSpec
     ? { nodes: buildSubflow.nodes, edges: buildSubflow.edges }
@@ -516,24 +506,14 @@ export function LiveRunner() {
 
               <div style={{ flex: 1, overflow: "hidden" }}>
                 <ExplainableShell
-                  snapshots={vizSnapshots ?? []}
+                  runtimeSnapshot={result.snapshot as any}
                   spec={buildTimeSpec as any}
                   title={resolvedSample?.name ?? "Pipeline"}
-                  resultData={result.snapshot?.sharedState ?? null}
                   logs={result.logs}
-                  narrative={result.narrative}
-                  narrativeEntries={result.narrativeEntries as NarrativeEntry[] | undefined}
+                  narrativeEntries={result.narrativeEntries as any}
                   tabs={["result", "explainable", "ai-compatible"]}
                   defaultTab="explainable"
                   defaultExpanded={{ details: true }}
-                  renderFlowchart={({ spec: s, snapshots: snaps, selectedIndex, onNodeClick }) => (
-                    <TracedFlowchartView
-                      spec={s}
-                      snapshots={snaps}
-                      snapshotIndex={selectedIndex}
-                      onNodeClick={onNodeClick}
-                    />
-                  )}
                 />
               </div>
             </>

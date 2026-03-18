@@ -37,6 +37,7 @@ export interface ExecutionResult {
     sharedState: Record<string, unknown>;
     executionTree: RuntimeStageNode;
     commitLog: unknown[];
+    subflowResults?: Record<string, unknown>;
   } | null;
   logs: string[];
   /** Narrative lines from CombinedNarrativeBuilder (separate from console logs) */
@@ -45,6 +46,8 @@ export interface ExecutionResult {
   narrativeEntries?: Array<{ type: string; text: string; depth: number; stageName?: string; stepNumber?: number }>;
   /** Build-time metadata captured from the builder */
   buildTime: BuildTimeInfo | null;
+  /** Runtime structure (spec + resolved dynamic subflows). Used for drill-down. */
+  runtimeStructure?: Record<string, unknown>;
   error?: string;
 }
 
@@ -253,7 +256,15 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
       // Optional — don't fail
     }
 
-    return { snapshot, logs, narrative, narrativeEntries, buildTime: capturedBuildTime };
+    // Capture runtime structure (has resolved lazy subflow structures for drill-down)
+    let runtimeStructure: ExecutionResult['runtimeStructure'];
+    try {
+      runtimeStructure = (capturedExecutor as any).getRuntimeStructure?.() ?? undefined;
+    } catch {
+      // Optional
+    }
+
+    return { snapshot, logs, narrative, narrativeEntries, buildTime: capturedBuildTime, runtimeStructure };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
