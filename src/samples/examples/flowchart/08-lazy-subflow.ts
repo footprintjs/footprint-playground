@@ -24,7 +24,7 @@
  *             → Notification: never resolved (zero cost)
  */
 
-import { flowChart, FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';
+import { flowChart, FlowChartBuilder, FlowChartExecutor, ScopeFacade, ManifestFlowRecorder } from 'footprint';
 
 (async () => {
 
@@ -155,6 +155,7 @@ console.log(`\nSubflows registered at build time: ${chart.subflows ? Object.keys
 // ── Execute ──────────────────────────────────────────────────────────────
 
 const executor = new FlowChartExecutor(chart);
+executor.attachFlowRecorder(new ManifestFlowRecorder());
 await executor.run();
 
 // ── Results ──────────────────────────────────────────────────────────────
