@@ -13,9 +13,9 @@
  */
 
 import {
-  flowChart,
+  typedFlowChart,
+  createTypedScopeFactory,
   FlowChartExecutor,
-  ScopeFacade,
   WindowedNarrativeFlowRecorder,
   SilentNarrativeFlowRecorder,
   AdaptiveNarrativeFlowRecorder,
@@ -24,15 +24,23 @@ import {
   type FlowRecorder,
 } from 'footprint';
 
+interface LoopState {
+  counter: number;
+  target: number;
+}
+
+interface LinearState {
+  step: string;
+}
+
 function buildLoopChart(iterations: number) {
-  return flowChart('Init', async (scope: ScopeFacade) => {
-    scope.setValue('counter', 0);
-    scope.setValue('target', iterations);
+  return typedFlowChart<LoopState>('Init', async (scope) => {
+    scope.counter = 0;
+    scope.target = iterations;
   }, 'init')
-    .addFunction('Process', async (scope: ScopeFacade) => {
-      const counter = scope.getValue('counter') as number;
-      scope.setValue('counter', counter + 1);
-      if (counter + 1 < (scope.getValue('target') as number)) {
+    .addFunction('Process', async (scope) => {
+      scope.counter = scope.counter + 1;
+      if (scope.counter < scope.target) {
         return { name: 'loop-back', next: { name: 'Process', id: 'process' } };
       }
     }, 'process')
@@ -40,14 +48,14 @@ function buildLoopChart(iterations: number) {
 }
 
 function buildNoLoopChart() {
-  return flowChart('A', async (scope: ScopeFacade) => {
-    scope.setValue('step', 'a');
+  return typedFlowChart<LinearState>('A', async (scope) => {
+    scope.step = 'a';
   }, 'a')
-    .addFunction('B', async (scope: ScopeFacade) => {
-      scope.setValue('step', 'b');
+    .addFunction('B', async (scope) => {
+      scope.step = 'b';
     }, 'b')
-    .addFunction('C', async (scope: ScopeFacade) => {
-      scope.setValue('step', 'c');
+    .addFunction('C', async (scope) => {
+      scope.step = 'c';
     }, 'c')
     .build();
 }
@@ -59,7 +67,7 @@ function buildNoLoopChart() {
   console.log('=== 1. Zero Loops (linear chart, no loop events) ===\n');
 
   const windowed = new WindowedNarrativeFlowRecorder(3, 2);
-  let executor = new FlowChartExecutor(buildNoLoopChart());
+  let executor = new FlowChartExecutor(buildNoLoopChart(), createTypedScopeFactory<LinearState>());
   executor.attachFlowRecorder(windowed);
   await executor.run();
 
@@ -81,11 +89,11 @@ function buildNoLoopChart() {
   ];
 
   for (const { name, recorder } of strategies) {
-    executor = new FlowChartExecutor(buildLoopChart(2)); // 1 loop iteration
+    executor = new FlowChartExecutor(buildLoopChart(2), createTypedScopeFactory<LoopState>()); // 1 loop iteration
     executor.attachFlowRecorder(recorder);
     await executor.run();
     const loopSentences = executor.getFlowNarrative().filter(s => s.includes('pass') || s.includes('Looped'));
-    console.log(`  ${name}: ${loopSentences.length} loop sentence(s) → ${loopSentences[0] ?? '(none)'}`);
+    console.log(`  ${name}: ${loopSentences.length} loop sentence(s) -> ${loopSentences[0] ?? '(none)'}`);
   }
   console.log();
 
@@ -102,7 +110,7 @@ function buildNoLoopChart() {
   ];
 
   for (const { name, recorder } of highStrategies) {
-    executor = new FlowChartExecutor(buildLoopChart(1000));
+    executor = new FlowChartExecutor(buildLoopChart(1000), createTypedScopeFactory<LoopState>());
     executor.attachFlowRecorder(recorder);
     const start = performance.now();
     await executor.run();
@@ -116,7 +124,7 @@ function buildNoLoopChart() {
 
   console.log('=== 4. Performance: 50 Recorders Attached ===\n');
 
-  executor = new FlowChartExecutor(buildLoopChart(100));
+  executor = new FlowChartExecutor(buildLoopChart(100), createTypedScopeFactory<LoopState>());
 
   const noopRecorders: FlowRecorder[] = [];
   for (let i = 0; i < 50; i++) {
@@ -133,8 +141,8 @@ function buildNoLoopChart() {
   await executor.run();
   const elapsed = (performance.now() - start).toFixed(1);
 
-  console.log(`  50 recorders × 100 loop iterations = ~5,000 hook calls`);
+  console.log(`  50 recorders x 100 loop iterations = ~5,000 hook calls`);
   console.log(`  Total execution time: ${elapsed}ms`);
-  console.log(`  Overhead per hook call: ~${((performance.now() - start) / 5000 * 1000).toFixed(0)}μs`);
+  console.log(`  Overhead per hook call: ~${((performance.now() - start) / 5000 * 1000).toFixed(0)}us`);
 
 })().catch(console.error);

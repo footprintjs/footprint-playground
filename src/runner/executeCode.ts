@@ -118,18 +118,23 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     );
   };
 
-  // Monkey-patch CombinedNarrativeBuilder to capture narrative output
-  const OriginalNarrativeBuilder = footprint.CombinedNarrativeBuilder;
-  const ProxiedNarrativeBuilder = class extends OriginalNarrativeBuilder {
-    build(...args: Parameters<typeof OriginalNarrativeBuilder.prototype.build>) {
-      const result = super.build(...args);
-      // result is string[] — capture it
-      if (Array.isArray(result)) {
-        narrative.push(...result);
-      }
-      return result;
-    }
+  // Monkey-patch typedFlowChart() — same pattern, also creates FlowChartBuilder internally
+  const proxiedTypedFlowChart = (
+    name: string,
+    fn: any,
+    id: string,
+    buildTimeExtractor?: any,
+    description?: string
+  ) => {
+    return new ProxiedBuilder(buildTimeExtractor).start(
+      name,
+      fn,
+      id,
+      description
+    );
   };
+
+  // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
 
   // Strip import statements (footprint and zod — both are injected into context)
   let cleaned = code.replace(
@@ -187,7 +192,8 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     FlowChartExecutor: ProxiedExecutor,
     FlowChartBuilder: ProxiedBuilder,
     flowChart: proxiedFlowChart,
-    CombinedNarrativeBuilder: ProxiedNarrativeBuilder,
+    typedFlowChart: proxiedTypedFlowChart,
+    // CombinedNarrativeBuilder removed in v1.0 — narrative captured via executor.getNarrative()
     console: {
       log: (...args: unknown[]) =>
         logs.push(

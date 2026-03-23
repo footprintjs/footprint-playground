@@ -11,9 +11,9 @@
  */
 
 import {
-  flowChart,
+  typedFlowChart,
+  createTypedScopeFactory,
   FlowChartExecutor,
-  ScopeFacade,
   NarrativeFlowRecorder,
   type FlowRecorder,
   type FlowLoopEvent,
@@ -26,7 +26,7 @@ import {
 const consoleLogger: FlowRecorder = {
   id: 'console',
   onStageExecuted: (e) => console.log(`  [log] Executed: ${e.stageName}`),
-  onDecision: (e) => console.log(`  [log] Decision: ${e.decider} → ${e.chosen}`),
+  onDecision: (e) => console.log(`  [log] Decision: ${e.decider} -> ${e.chosen}`),
   onLoop: (e) => console.log(`  [log] Loop: ${e.target} #${e.iteration}`),
 };
 
@@ -84,22 +84,29 @@ class EverySeventhRecorder extends NarrativeFlowRecorder {
   getSuppressed(): number { return this.suppressed; }
 }
 
+// ── State interface ──────────────────────────────────────────────────────
+
+interface LoopState {
+  counter: number;
+  target: number;
+  result?: string;
+}
+
 // ── Run all three with a loop chart ──────────────────────────────────────
 
 function buildChart() {
-  return flowChart('Init', async (scope: ScopeFacade) => {
-    scope.setValue('counter', 0);
-    scope.setValue('target', 15);
+  return typedFlowChart<LoopState>('Init', async (scope) => {
+    scope.counter = 0;
+    scope.target = 15;
   }, 'init')
-    .addFunction('Process', async (scope: ScopeFacade) => {
-      const counter = scope.getValue('counter') as number;
-      scope.setValue('counter', counter + 1);
-      if (counter + 1 < (scope.getValue('target') as number)) {
+    .addFunction('Process', async (scope) => {
+      scope.counter = scope.counter + 1;
+      if (scope.counter < scope.target) {
         return { name: 'loop-back', next: { name: 'Process', id: 'process' } };
       }
     }, 'process')
-    .addFunction('Done', async (scope: ScopeFacade) => {
-      scope.setValue('result', 'completed');
+    .addFunction('Done', async (scope) => {
+      scope.result = 'completed';
     }, 'done')
     .build();
 }
@@ -108,7 +115,7 @@ function buildChart() {
 
   console.log('=== Pattern 1: Object Literal (Console Logger) ===\n');
 
-  let executor = new FlowChartExecutor(buildChart());
+  let executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(new NarrativeFlowRecorder());
   executor.attachFlowRecorder(consoleLogger);
   await executor.run();
@@ -119,7 +126,7 @@ function buildChart() {
   console.log('=== Pattern 2: Class with State (Metrics) ===\n');
 
   const metrics = new MetricsFlowRecorder();
-  executor = new FlowChartExecutor(buildChart());
+  executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(metrics);
   await executor.run();
   console.log('  Metrics:', metrics.getSummary());
@@ -130,7 +137,7 @@ function buildChart() {
   console.log('=== Pattern 3: Custom Strategy (Every 7th) ===\n');
 
   const every7th = new EverySeventhRecorder();
-  executor = new FlowChartExecutor(buildChart());
+  executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(every7th);
   await executor.run();
 

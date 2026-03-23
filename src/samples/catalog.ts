@@ -155,7 +155,7 @@ export const samples: Sample[] = [
     name: "Auto-Narrative",
     category: "Features",
     description:
-      "Every setValue/getValue is observed by NarrativeRecorder — full causal trace with zero manual work.",
+      "Every read/write is observed automatically -- full causal trace with zero manual work.",
     code: narrativeCode,
   },
   {

@@ -15,23 +15,27 @@
  */
 
 import {
-  flowChart,
+  typedFlowChart,
+  createTypedScopeFactory,
   FlowChartExecutor,
-  ScopeFacade,
   NarrativeFlowRecorder,
   SilentNarrativeFlowRecorder,
   type FlowRecorder,
 } from 'footprint';
 
+interface LoopState {
+  counter: number;
+  target: number;
+}
+
 function buildLoopChart(iterations: number) {
-  return flowChart('Init', async (scope: ScopeFacade) => {
-    scope.setValue('counter', 0);
-    scope.setValue('target', iterations);
+  return typedFlowChart<LoopState>('Init', async (scope) => {
+    scope.counter = 0;
+    scope.target = iterations;
   }, 'init')
-    .addFunction('Process', async (scope: ScopeFacade) => {
-      const counter = scope.getValue('counter') as number;
-      scope.setValue('counter', counter + 1);
-      if (counter + 1 < (scope.getValue('target') as number)) {
+    .addFunction('Process', async (scope) => {
+      scope.counter = scope.counter + 1;
+      if (scope.counter < scope.target) {
         return { name: 'loop-back', next: { name: 'Process', id: 'process' } };
       }
     }, 'process')
@@ -57,7 +61,7 @@ function buildLoopChart(iterations: number) {
     },
   };
 
-  let executor = new FlowChartExecutor(buildLoopChart(10));
+  let executor = new FlowChartExecutor(buildLoopChart(10), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(silent);
   executor.attachFlowRecorder(timingRecorder);
   await executor.run();
@@ -71,7 +75,7 @@ function buildLoopChart(iterations: number) {
 
   console.log('=== 2. Attach / Detach / List ===\n');
 
-  executor = new FlowChartExecutor(buildLoopChart(5));
+  executor = new FlowChartExecutor(buildLoopChart(5), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(new NarrativeFlowRecorder());
   executor.attachFlowRecorder({ id: 'audit', onLoop: () => {} });
   executor.attachFlowRecorder({ id: 'debug', onStageExecuted: () => {} });
@@ -97,7 +101,7 @@ function buildLoopChart(iterations: number) {
 
   const goodRecorder = new NarrativeFlowRecorder();
 
-  executor = new FlowChartExecutor(buildLoopChart(5));
+  executor = new FlowChartExecutor(buildLoopChart(5), createTypedScopeFactory<LoopState>());
   executor.attachFlowRecorder(errorRecorder);
   executor.attachFlowRecorder(goodRecorder);
   await executor.run();

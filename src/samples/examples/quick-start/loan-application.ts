@@ -1,9 +1,9 @@
 /**
  * Quick Start — Loan Application
  *
- * A complete loan underwriting pipeline that demonstrates:
- * - Reading input via getArgs() (readonly, frozen, shared across all stages)
- * - Writing computed values via setValue() (stage-produced data)
+ * A complete loan underwriting pipeline with TypedScope:
+ * - Typed property access (no casts needed)
+ * - Reading input via $getArgs() (readonly, frozen)
  * - Auto-generated narrative trace (setEnableNarrative + getNarrative)
  * - Decider-based branching
  *
@@ -11,13 +11,16 @@
  * Try it: https://footprintjs.github.io/footprint-playground/samples/loan-application
  */
 
-import { FlowChartBuilder, FlowChartExecutor, ScopeFacade } from 'footprint';
+import {
+  typedFlowChart,
+  createTypedScopeFactory,
+  FlowChartExecutor,
+  decide,
+} from 'footprint';
 
 (async () => {
 
-// ── Input ───────────────────────────────────────────────────────────────
-// In the playground, INPUT is provided via the JSON input panel.
-// When running standalone, define it here as a fallback.
+// ── Types ───────────────────────────────────────────────────────────────
 
 interface LoanApplication {
   applicantName: string;
@@ -29,8 +32,21 @@ interface LoanApplication {
   loanAmount: number;
 }
 
-interface LoanInput {
-  app: LoanApplication;
+interface LoanInput { app: LoanApplication }
+
+// State produced by the pipeline stages
+interface LoanState {
+  creditTier: string;
+  creditFlags: string[];
+  dtiRatio: number;
+  dtiPercent: number;
+  dtiStatus: string;
+  dtiFlags: string[];
+  employmentVerified: boolean;
+  employmentFlags: string[];
+  riskTier: string;
+  riskFactors: string[];
+  decision: string;
 }
 
 const input: LoanInput = (typeof INPUT !== 'undefined' && INPUT) || {
@@ -49,143 +65,85 @@ const input: LoanInput = (typeof INPUT !== 'undefined' && INPUT) || {
 
 const creditBureau = {
   pullReport: (score: number) => {
-    const tier =
-      score >= 740 ? 'excellent'
-        : score >= 670 ? 'good'
-          : score >= 580 ? 'fair'
-            : 'poor';
-    return {
-      tier,
-      flags: tier === 'fair' ? ['below-average credit'] : [],
-    };
+    const tier = score >= 740 ? 'excellent' : score >= 670 ? 'good' : score >= 580 ? 'fair' : 'poor';
+    return { tier, flags: tier === 'fair' ? ['below-average credit'] : [] };
   },
 };
 
 const employerVerification = {
   verify: (status: string, years: number) => ({
     verified: status !== 'unemployed',
-    flags:
-      status === 'self-employed' && years < 2
-        ? [`Self-employed for only ${years} year(s)`]
-        : [],
+    flags: status === 'self-employed' && years < 2 ? [`Self-employed for only ${years} year(s)`] : [],
   }),
-};
-
-// ── Stage Functions ─────────────────────────────────────────────────────
-
-const receiveApplication = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  console.log(`  Received application from ${app.applicantName}`);
-};
-
-const pullCreditReport = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  await new Promise((r) => setTimeout(r, 40)); // simulate credit bureau API
-  const report = creditBureau.pullReport(app.creditScore);
-  scope.setValue('creditTier', report.tier);
-  scope.setValue('creditFlags', report.flags);
-};
-
-const calculateDTI = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  const dtiRatio = Math.round((app.monthlyDebts / (app.annualIncome / 12)) * 100) / 100;
-  scope.setValue('dtiRatio', dtiRatio);
-  scope.setValue('dtiPercent', Math.round(dtiRatio * 100));
-  scope.setValue('dtiStatus', dtiRatio > 0.43 ? 'excessive' : 'healthy');
-  scope.setValue(
-    'dtiFlags',
-    dtiRatio > 0.43 ? [`DTI at ${Math.round(dtiRatio * 100)}% exceeds 43%`] : [],
-  );
-};
-
-const verifyEmployment = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  await new Promise((r) => setTimeout(r, 25)); // simulate employer verification
-  const result = employerVerification.verify(app.employmentStatus, app.employmentYears);
-  scope.setValue('employmentVerified', result.verified);
-  scope.setValue('employmentFlags', result.flags);
-};
-
-const assessRisk = async (scope: ScopeFacade) => {
-  const creditTier = scope.getValue('creditTier') as string;
-  const dtiStatus = scope.getValue('dtiStatus') as string;
-  const verified = scope.getValue('employmentVerified') as boolean;
-
-  const riskTier =
-    !verified || dtiStatus === 'excessive' || creditTier === 'poor' ? 'high' : 'low';
-  scope.setValue('riskTier', riskTier);
-
-  const flags = [
-    ...(scope.getValue('creditFlags') as string[]),
-    ...(scope.getValue('dtiFlags') as string[]),
-    ...(scope.getValue('employmentFlags') as string[]),
-  ];
-  scope.setValue('riskFactors', flags);
-};
-
-const loanDecider = (scope: ScopeFacade): string => {
-  const tier = scope.getValue('riskTier') as string;
-  const factors = scope.getValue('riskFactors') as string[];
-
-  if (tier === 'low') {
-    scope.addDebugInfo('deciderRationale', 'riskTier is "low" — no risk factors found');
-    return 'approved';
-  }
-  if (tier === 'high') {
-    scope.addDebugInfo('deciderRationale',
-      `riskTier is "high" — ${factors.length} risk factor(s): ${factors.join('; ')}`);
-    return 'rejected';
-  }
-  scope.addDebugInfo('deciderRationale',
-    `riskTier is "${tier}" — needs human review`);
-  return 'manual-review';
-};
-
-const approveApplication = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  scope.setValue('decision', `${app.applicantName}: APPROVED`);
-};
-
-const rejectApplication = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  const factors = scope.getValue('riskFactors') as string[];
-  scope.setValue('decision', `${app.applicantName}: REJECTED — ${factors.join('; ')}`);
-};
-
-const manualReview = async (scope: ScopeFacade) => {
-  const { app } = scope.getArgs<LoanInput>();
-  scope.setValue('decision', `${app.applicantName}: SENT TO MANUAL REVIEW`);
 };
 
 // ── Flowchart ───────────────────────────────────────────────────────────
 
-const chart = new FlowChartBuilder()
+const chart = typedFlowChart<LoanState>('ReceiveApplication', async (scope) => {
+  const { app } = scope.$getArgs<LoanInput>();
+  console.log(`  Received application from ${app.applicantName}`);
+}, 'receive-application', undefined, 'Ingest the loan application')
   .setEnableNarrative()
-  .start('ReceiveApplication', receiveApplication, 'receive-application',
-    'Ingest the loan application and store applicant data')
-  .addFunction('PullCreditReport', pullCreditReport, 'pull-credit-report',
-    'Retrieve credit score and flag any credit issues')
-  .addFunction('CalculateDTI', calculateDTI, 'calculate-dti',
-    'Compute debt-to-income ratio and flag excessive debt')
-  .addFunction('VerifyEmployment', verifyEmployment, 'verify-employment',
-    'Confirm employment status and years of experience')
-  .addFunction('AssessRisk', assessRisk, 'assess-risk',
-    'Evaluate all flags and credit data to determine risk tier')
-  .addDeciderFunction('LoanDecision', loanDecider as any, 'loan-decision',
-    'Route to approval, rejection, or manual review based on risk tier')
-    .addFunctionBranch('approved', 'ApproveApplication', approveApplication,
-      'Generate approval letter with loan terms')
-    .addFunctionBranch('rejected', 'RejectApplication', rejectApplication,
-      'Generate rejection notice with denial reasons')
-    .addFunctionBranch('manual-review', 'ManualReview', manualReview,
-      'Flag for human underwriter review with risk summary')
+  .addFunction('PullCreditReport', async (scope) => {
+    const { app } = scope.$getArgs<LoanInput>();
+    await new Promise((r) => setTimeout(r, 40));
+    const report = creditBureau.pullReport(app.creditScore);
+    scope.creditTier = report.tier;
+    scope.creditFlags = report.flags;
+  }, 'pull-credit-report', 'Retrieve credit score and flag issues')
+  .addFunction('CalculateDTI', async (scope) => {
+    const { app } = scope.$getArgs<LoanInput>();
+    scope.dtiRatio = Math.round((app.monthlyDebts / (app.annualIncome / 12)) * 100) / 100;
+    scope.dtiPercent = Math.round(scope.dtiRatio * 100);
+    scope.dtiStatus = scope.dtiRatio > 0.43 ? 'excessive' : 'healthy';
+    scope.dtiFlags = scope.dtiRatio > 0.43
+      ? [`DTI at ${scope.dtiPercent}% exceeds 43%`] : [];
+  }, 'calculate-dti', 'Compute debt-to-income ratio')
+  .addFunction('VerifyEmployment', async (scope) => {
+    const { app } = scope.$getArgs<LoanInput>();
+    await new Promise((r) => setTimeout(r, 25));
+    const result = employerVerification.verify(app.employmentStatus, app.employmentYears);
+    scope.employmentVerified = result.verified;
+    scope.employmentFlags = result.flags;
+  }, 'verify-employment', 'Confirm employment status')
+  .addFunction('AssessRisk', async (scope) => {
+    scope.riskTier = !scope.employmentVerified || scope.dtiStatus === 'excessive' || scope.creditTier === 'poor'
+      ? 'high' : 'low';
+    scope.riskFactors = [...scope.creditFlags, ...scope.dtiFlags, ...scope.employmentFlags];
+  }, 'assess-risk', 'Evaluate risk tier from all flags')
+  .addDeciderFunction('LoanDecision', (scope) => {
+    return decide(scope, [
+      {
+        when: { riskTier: { eq: 'low' } },
+        then: 'approved',
+        label: 'Low risk — no flags',
+      },
+      {
+        when: { riskTier: { eq: 'high' } },
+        then: 'rejected',
+        label: 'High risk — multiple flags',
+      },
+    ], 'manual-review');
+  }, 'loan-decision', 'Route based on risk tier')
+    .addFunctionBranch('approved', 'ApproveApplication', async (scope) => {
+      const { app } = scope.$getArgs<LoanInput>();
+      scope.decision = `${app.applicantName}: APPROVED`;
+    }, 'Generate approval')
+    .addFunctionBranch('rejected', 'RejectApplication', async (scope) => {
+      const { app } = scope.$getArgs<LoanInput>();
+      scope.decision = `${app.applicantName}: REJECTED -- ${scope.riskFactors.join('; ')}`;
+    }, 'Generate rejection')
+    .addFunctionBranch('manual-review', 'ManualReview', async (scope) => {
+      const { app } = scope.$getArgs<LoanInput>();
+      scope.decision = `${app.applicantName}: SENT TO MANUAL REVIEW`;
+    }, 'Flag for human review')
     .setDefault('manual-review')
     .end()
   .build();
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
-const executor = new FlowChartExecutor(chart);
+const executor = new FlowChartExecutor(chart, createTypedScopeFactory<LoanState>());
 await executor.run({ input });
 
 console.log('=== Loan Application — Causal Trace ===\n');
