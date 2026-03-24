@@ -21,13 +21,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       # Replace file: links with npm versions for CI
       - name: Swap local deps for npm packages
         run: |
           sed -i 's|"footprintjs": "file:../footPrint"|"footprintjs": "^1.0.0"|' package.json
           sed -i 's|"footprint-explainable-ui": "file:../explainable-ui"|"footprint-explainable-ui": "^0.12.0"|' package.json
+          rm -f package-lock.json
 
       - run: npm install
       # Skip tsc type-checking in CI (executeCode.ts monkey-patches internal classes)
