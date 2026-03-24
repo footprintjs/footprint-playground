@@ -10,7 +10,7 @@
  * Try it: https://footprintjs.github.io/footprint-playground/samples/loops
  */
 
-import { typedFlowChart, createTypedScopeFactory, FlowChartExecutor } from 'footprint';
+import { typedFlowChart,  FlowChartExecutor } from 'footprint';
 
 interface LoopState {
   city: string;
@@ -91,7 +91,7 @@ const chart = typedFlowChart<LoopState>('InitRetry', async (scope) => {
 
 // -- Run ----------------------------------------------------------------------
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<LoopState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run();
 
 console.log('\n=== Loops (Retry with Backoff) ===\n');

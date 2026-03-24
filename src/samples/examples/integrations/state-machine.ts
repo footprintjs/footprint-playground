@@ -14,7 +14,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
 } from 'footprint';
 
@@ -112,7 +112,7 @@ const fsm = new OrderStateMachine()
       .setEnableNarrative()
       .build();
 
-    const executor = new FlowChartExecutor(chart, createTypedScopeFactory<ValidationState>());
+    const executor = new FlowChartExecutor(chart);
     await executor.run();
     allNarrative.push(...executor.getNarrative());
     context.validation = { allInStock, addressValid };
@@ -136,7 +136,7 @@ const fsm = new OrderStateMachine()
       .setEnableNarrative()
       .build();
 
-    const executor = new FlowChartExecutor(chart, createTypedScopeFactory<PaymentState>());
+    const executor = new FlowChartExecutor(chart);
     await executor.run();
     allNarrative.push(...executor.getNarrative());
     context.payment = { total, paymentId };
@@ -162,7 +162,7 @@ const fsm = new OrderStateMachine()
       .setEnableNarrative()
       .build();
 
-    const executor = new FlowChartExecutor(chart, createTypedScopeFactory<ShippingState>());
+    const executor = new FlowChartExecutor(chart);
     await executor.run();
     allNarrative.push(...executor.getNarrative());
     context.shipping = { trackingNumber, carrier };

@@ -18,7 +18,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   NarrativeFlowRecorder,
   WindowedNarrativeFlowRecorder,
@@ -179,7 +179,7 @@ class EveryFailureRecorder extends NarrativeFlowRecorder {
   for (const { name, recorder, note } of strategies) {
     const executor = new FlowChartExecutor(
       buildSyncChart(BATCH_COUNT),
-      createTypedScopeFactory<SyncState>(),
+,
     );
     executor.attachFlowRecorder(recorder);
     await executor.run();
@@ -196,7 +196,7 @@ class EveryFailureRecorder extends NarrativeFlowRecorder {
   const separate = new SeparateNarrativeFlowRecorder();
   const executor = new FlowChartExecutor(
     buildSyncChart(BATCH_COUNT),
-    createTypedScopeFactory<SyncState>(),
+,
   );
   executor.attachFlowRecorder(separate);
   await executor.run();

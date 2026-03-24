@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { typedFlowChart, createTypedScopeFactory, FlowChartExecutor } from 'footprint';
+import { typedFlowChart,  FlowChartExecutor } from 'footprint';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A. Schema Validation — fail-fast at the boundary
@@ -36,7 +36,7 @@ async function demoSchemaValidation() {
     }))
     .build();
 
-  const executor = new FlowChartExecutor(chart, createTypedScopeFactory<SchemaState>());
+  const executor = new FlowChartExecutor(chart);
 
   // Valid input — pipeline runs normally
   try {
@@ -110,7 +110,7 @@ async function demoReadonlyGuards() {
     }
   }, 'process').build();
 
-  const executor = new FlowChartExecutor(chart, createTypedScopeFactory<ReadonlyState>());
+  const executor = new FlowChartExecutor(chart);
   await executor.run({ input: { name: 'Alice' } });
 }
 
@@ -158,7 +158,7 @@ async function demoFrozenArgs() {
     console.log(`  Cached: getArgs() === getArgs() -> ${args === args2}`);
   }, 'process').build();
 
-  const executor = new FlowChartExecutor(chart, createTypedScopeFactory<FrozenState>());
+  const executor = new FlowChartExecutor(chart);
   await executor.run({
     input: { user: { name: 'Alice', address: { city: 'Portland' } } },
   });
@@ -197,7 +197,7 @@ async function demoBeforeAfter() {
     }, 'stage-2')
     .build();
 
-  const oldExecutor = new FlowChartExecutor(oldChart, createTypedScopeFactory<OldState>());
+  const oldExecutor = new FlowChartExecutor(oldChart);
   await oldExecutor.run();
 
   // NEW PATTERN: immutable input via run({ input })
@@ -218,7 +218,7 @@ async function demoBeforeAfter() {
     }, 'stage-2')
     .build();
 
-  const newExecutor = new FlowChartExecutor(newChart, createTypedScopeFactory<NewState>());
+  const newExecutor = new FlowChartExecutor(newChart);
   await newExecutor.run({ input: { score: 0, name: 'Alice' } });
 }
 

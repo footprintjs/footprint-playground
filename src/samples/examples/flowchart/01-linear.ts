@@ -9,7 +9,7 @@
  * Try it: https://footprintjs.github.io/footprint-playground/samples/linear
  */
 
-import { typedFlowChart, createTypedScopeFactory, FlowChartExecutor } from 'footprint';
+import { typedFlowChart,  FlowChartExecutor } from 'footprint';
 
 interface UserState {
   user: { username: string; email: string; joinedAt: string };
@@ -59,7 +59,7 @@ const chart = typedFlowChart<UserState>('FetchUser', async (scope) => {
   }, 'send-welcome-email')
   .build();
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<UserState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
 
 console.log('=== Linear Pipeline ===\n');

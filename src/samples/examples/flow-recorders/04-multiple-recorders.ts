@@ -16,7 +16,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   NarrativeFlowRecorder,
   SilentNarrativeFlowRecorder,
@@ -61,7 +61,7 @@ function buildLoopChart(iterations: number) {
     },
   };
 
-  let executor = new FlowChartExecutor(buildLoopChart(10), createTypedScopeFactory<LoopState>());
+  let executor = new FlowChartExecutor(buildLoopChart(10));
   executor.attachFlowRecorder(silent);
   executor.attachFlowRecorder(timingRecorder);
   await executor.run();
@@ -75,7 +75,7 @@ function buildLoopChart(iterations: number) {
 
   console.log('=== 2. Attach / Detach / List ===\n');
 
-  executor = new FlowChartExecutor(buildLoopChart(5), createTypedScopeFactory<LoopState>());
+  executor = new FlowChartExecutor(buildLoopChart(5));
   executor.attachFlowRecorder(new NarrativeFlowRecorder());
   executor.attachFlowRecorder({ id: 'audit', onLoop: () => {} });
   executor.attachFlowRecorder({ id: 'debug', onStageExecuted: () => {} });
@@ -101,7 +101,7 @@ function buildLoopChart(iterations: number) {
 
   const goodRecorder = new NarrativeFlowRecorder();
 
-  executor = new FlowChartExecutor(buildLoopChart(5), createTypedScopeFactory<LoopState>());
+  executor = new FlowChartExecutor(buildLoopChart(5));
   executor.attachFlowRecorder(errorRecorder);
   executor.attachFlowRecorder(goodRecorder);
   await executor.run();

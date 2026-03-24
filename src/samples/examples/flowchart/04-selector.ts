@@ -12,7 +12,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   select,
 } from 'footprint';
@@ -104,7 +104,7 @@ const chart = typedFlowChart<SelectorState>('LoadPatient', async (scope) => {
   }, 'generate-report', 'Generate screening report')
   .build();
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<SelectorState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run();
 
 console.log('\n=== Selector with select() ===\n');

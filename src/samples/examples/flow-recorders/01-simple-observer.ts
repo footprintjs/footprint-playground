@@ -11,7 +11,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   type FlowRecorder,
 } from 'footprint';
@@ -53,7 +53,7 @@ const observer: FlowRecorder = {
   },
 };
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<SimpleState>());
+const executor = new FlowChartExecutor(chart);
 executor.attachFlowRecorder(observer);
 await executor.run();
 

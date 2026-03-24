@@ -26,7 +26,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartBuilder,
   FlowChartExecutor,
   ManifestFlowRecorder,
@@ -191,7 +191,7 @@ console.log(`\nSubflows registered at build time: ${chart.subflows ? Object.keys
 
 // -- Execute ------------------------------------------------------------------
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<OrchestratorState>());
+const executor = new FlowChartExecutor(chart);
 executor.attachFlowRecorder(new ManifestFlowRecorder());
 await executor.run();
 

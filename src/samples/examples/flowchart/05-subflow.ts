@@ -10,7 +10,7 @@
  * Try it: https://footprintjs.github.io/footprint-playground/samples/subflow
  */
 
-import { typedFlowChart, createTypedScopeFactory, FlowChartBuilder, FlowChartExecutor, type TypedScope } from 'footprint';
+import { typedFlowChart,  FlowChartBuilder, FlowChartExecutor, type TypedScope } from 'footprint';
 
 interface SubflowPaymentState {
   orderTotal: number;
@@ -126,7 +126,7 @@ const chart = typedFlowChart<ParentOrderState>('CreateOrder', async (scope) => {
 
 // -- Run ----------------------------------------------------------------------
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<ParentOrderState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run();
 
 console.log('\n=== Subflow (Nested Pipeline) ===\n');

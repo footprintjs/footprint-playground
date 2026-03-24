@@ -10,7 +10,7 @@
  * Try it: https://footprintjs.github.io/footprint-playground/samples/fork
  */
 
-import { typedFlowChart, createTypedScopeFactory, FlowChartExecutor } from 'footprint';
+import { typedFlowChart,  FlowChartExecutor } from 'footprint';
 
 interface Order {
   customerId: string;
@@ -98,7 +98,7 @@ const chart = typedFlowChart<ForkState>('LoadOrder', async (scope) => {
 
 // -- Run ----------------------------------------------------------------------
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<ForkState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run();
 
 console.log('=== Fork (Parallel Branches) ===\n');

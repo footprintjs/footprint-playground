@@ -12,7 +12,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   NarrativeFlowRecorder,
   type FlowRecorder,
@@ -115,7 +115,7 @@ function buildChart() {
 
   console.log('=== Pattern 1: Object Literal (Console Logger) ===\n');
 
-  let executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
+  let executor = new FlowChartExecutor(buildChart());
   executor.attachFlowRecorder(new NarrativeFlowRecorder());
   executor.attachFlowRecorder(consoleLogger);
   await executor.run();
@@ -126,7 +126,7 @@ function buildChart() {
   console.log('=== Pattern 2: Class with State (Metrics) ===\n');
 
   const metrics = new MetricsFlowRecorder();
-  executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
+  executor = new FlowChartExecutor(buildChart());
   executor.attachFlowRecorder(metrics);
   await executor.run();
   console.log('  Metrics:', metrics.getSummary());
@@ -137,7 +137,7 @@ function buildChart() {
   console.log('=== Pattern 3: Custom Strategy (Every 7th) ===\n');
 
   const every7th = new EverySeventhRecorder();
-  executor = new FlowChartExecutor(buildChart(), createTypedScopeFactory<LoopState>());
+  executor = new FlowChartExecutor(buildChart());
   executor.attachFlowRecorder(every7th);
   await executor.run();
 

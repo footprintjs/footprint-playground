@@ -12,7 +12,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartBuilder,
   FlowChartExecutor,
   ManifestFlowRecorder,
@@ -80,7 +80,7 @@ const chart = typedFlowChart<OrderState>('ReceiveOrder', async (scope) => {
 
 // ── Execute with ManifestFlowRecorder ─────────────────────────────────
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<OrderState>());
+const executor = new FlowChartExecutor(chart);
 const manifest = new ManifestFlowRecorder();
 executor.attachFlowRecorder(manifest);
 

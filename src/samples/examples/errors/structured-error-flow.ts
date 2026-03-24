@@ -16,7 +16,7 @@
 import { z } from 'zod';
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   InputValidationError,
   extractErrorInfo,
@@ -88,7 +88,7 @@ async function demoStructuredErrorRecorder() {
     },
   };
 
-  const executor = new FlowChartExecutor(chart, createTypedScopeFactory<OrderState>());
+  const executor = new FlowChartExecutor(chart);
   executor.attachFlowRecorder(errorObserver);
 
   try {
@@ -127,7 +127,7 @@ async function demoNarrativeEnrichment() {
     .setEnableNarrative()
     .build();
 
-  const executor = new FlowChartExecutor(chart, createTypedScopeFactory<NarrativeState>());
+  const executor = new FlowChartExecutor(chart);
 
   try {
     await executor.run();

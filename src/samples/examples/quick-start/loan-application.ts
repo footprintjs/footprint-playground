@@ -13,7 +13,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   decide,
 } from 'footprint';
@@ -143,7 +143,7 @@ const chart = typedFlowChart<LoanState>('ReceiveApplication', async (scope) => {
 
 // ── Run ─────────────────────────────────────────────────────────────────
 
-const executor = new FlowChartExecutor(chart, createTypedScopeFactory<LoanState>());
+const executor = new FlowChartExecutor(chart);
 await executor.run({ input });
 
 console.log('=== Loan Application — Causal Trace ===\n');

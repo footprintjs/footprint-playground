@@ -14,7 +14,7 @@
 
 import {
   typedFlowChart,
-  createTypedScopeFactory,
+  
   FlowChartExecutor,
   WindowedNarrativeFlowRecorder,
   SilentNarrativeFlowRecorder,
@@ -67,7 +67,7 @@ function buildNoLoopChart() {
   console.log('=== 1. Zero Loops (linear chart, no loop events) ===\n');
 
   const windowed = new WindowedNarrativeFlowRecorder(3, 2);
-  let executor = new FlowChartExecutor(buildNoLoopChart(), createTypedScopeFactory<LinearState>());
+  let executor = new FlowChartExecutor(buildNoLoopChart());
   executor.attachFlowRecorder(windowed);
   await executor.run();
 
@@ -89,7 +89,7 @@ function buildNoLoopChart() {
   ];
 
   for (const { name, recorder } of strategies) {
-    executor = new FlowChartExecutor(buildLoopChart(2), createTypedScopeFactory<LoopState>()); // 1 loop iteration
+    executor = new FlowChartExecutor(buildLoopChart(2)); // 1 loop iteration
     executor.attachFlowRecorder(recorder);
     await executor.run();
     const loopSentences = executor.getFlowNarrative().filter(s => s.includes('pass') || s.includes('Looped'));
@@ -110,7 +110,7 @@ function buildNoLoopChart() {
   ];
 
   for (const { name, recorder } of highStrategies) {
-    executor = new FlowChartExecutor(buildLoopChart(1000), createTypedScopeFactory<LoopState>());
+    executor = new FlowChartExecutor(buildLoopChart(1000));
     executor.attachFlowRecorder(recorder);
     const start = performance.now();
     await executor.run();
@@ -124,7 +124,7 @@ function buildNoLoopChart() {
 
   console.log('=== 4. Performance: 50 Recorders Attached ===\n');
 
-  executor = new FlowChartExecutor(buildLoopChart(100), createTypedScopeFactory<LoopState>());
+  executor = new FlowChartExecutor(buildLoopChart(100));
 
   const noopRecorders: FlowRecorder[] = [];
   for (let i = 0; i < 50; i++) {
