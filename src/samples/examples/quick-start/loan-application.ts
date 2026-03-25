@@ -4,7 +4,7 @@
  * A complete loan underwriting pipeline with TypedScope:
  * - Typed property access (no casts needed)
  * - Reading input via $getArgs() (readonly, frozen)
- * - Auto-generated narrative trace (setEnableNarrative + getNarrative)
+ * - Auto-generated narrative trace (recorder(narrative()) + getNarrative)
  * - Decider-based branching
  *
  * In the playground, edit the INPUT panel (bottom-left) to change applicant data.
@@ -12,7 +12,7 @@
  */
 
 import {
-  typedFlowChart,
+  flowChart,
   
   FlowChartExecutor,
   decide,
@@ -79,11 +79,11 @@ const employerVerification = {
 
 // ── Flowchart ───────────────────────────────────────────────────────────
 
-const chart = typedFlowChart<LoanState>('ReceiveApplication', async (scope) => {
+const chart = flowChart<LoanState>('ReceiveApplication', async (scope) => {
   const { app } = scope.$getArgs<LoanInput>();
   console.log(`  Received application from ${app.applicantName}`);
 }, 'receive-application', undefined, 'Ingest the loan application')
-  .setEnableNarrative()
+
   .addFunction('PullCreditReport', async (scope) => {
     const { app } = scope.$getArgs<LoanInput>();
     await new Promise((r) => setTimeout(r, 40));

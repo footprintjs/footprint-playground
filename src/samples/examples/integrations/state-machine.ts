@@ -13,7 +13,7 @@
  */
 
 import {
-  typedFlowChart,
+  flowChart,
   
   FlowChartExecutor,
 } from 'footprint';
@@ -99,7 +99,7 @@ const fsm = new OrderStateMachine()
     let allInStock = false;
     let addressValid = false;
 
-    const chart = typedFlowChart<ValidationState>('CheckInventory', async (scope) => {
+    const chart = flowChart<ValidationState>('CheckInventory', async (scope) => {
       scope.items = order.items;
       allInStock = order.items.every((item) => item.qty <= 100);
       scope.allInStock = allInStock;
@@ -109,7 +109,7 @@ const fsm = new OrderStateMachine()
         addressValid = order.shippingAddress.length > 5;
         scope.addressValid = addressValid;
       }, 'check-address')
-      .setEnableNarrative()
+
       .build();
 
     const executor = new FlowChartExecutor(chart);
@@ -123,7 +123,7 @@ const fsm = new OrderStateMachine()
     let total = 0;
     let paymentId = '';
 
-    const chart = typedFlowChart<PaymentState>('CalculateTotal', async (scope) => {
+    const chart = flowChart<PaymentState>('CalculateTotal', async (scope) => {
       total = order.items.reduce((sum, i) => sum + i.price * i.qty, 0);
       scope.total = total;
     }, 'calculate-total')
@@ -133,7 +133,7 @@ const fsm = new OrderStateMachine()
         scope.paymentId = paymentId;
         scope.charged = total;
       }, 'charge-payment')
-      .setEnableNarrative()
+
       .build();
 
     const executor = new FlowChartExecutor(chart);
@@ -147,7 +147,7 @@ const fsm = new OrderStateMachine()
     let trackingNumber = '';
     let carrier = '';
 
-    const chart = typedFlowChart<ShippingState>('CreateLabel', async (scope) => {
+    const chart = flowChart<ShippingState>('CreateLabel', async (scope) => {
       await new Promise((r) => setTimeout(r, 20)); // simulate label creation
       trackingNumber = `TRK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       scope.trackingNumber = trackingNumber;
@@ -159,7 +159,7 @@ const fsm = new OrderStateMachine()
         scope.estimatedDays = 3;
         scope.dispatchStatus = `Dispatched ${trackingNumber} via ${carrier}`;
       }, 'dispatch-carrier')
-      .setEnableNarrative()
+
       .build();
 
     const executor = new FlowChartExecutor(chart);

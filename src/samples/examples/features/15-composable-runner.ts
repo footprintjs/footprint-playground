@@ -10,7 +10,7 @@
  */
 
 import {
-  typedFlowChart,
+  flowChart,
   
   FlowChartBuilder,
   FlowChartExecutor,
@@ -101,7 +101,7 @@ class InventoryChecker implements ComposableRunner<{ orderId: string }, { inStoc
 const payment = new PaymentProcessor();
 const inventory = new InventoryChecker();
 
-const orderChart = typedFlowChart<OrderState>('ReceiveOrder', (scope) => {
+const orderChart = flowChart<OrderState>('ReceiveOrder', (scope) => {
   scope.orderId = 'ORD-42';
   scope.amount = 149.99;
 }, 'receive-order', undefined, 'Ingest order data')
@@ -110,7 +110,7 @@ const orderChart = typedFlowChart<OrderState>('ReceiveOrder', (scope) => {
   })
   .addSubFlowChartNext('sf-inventory', inventory.toFlowChart(), 'Inventory')
   .addFunction('Confirm', (scope) => { scope.confirmed = true; }, 'confirm', 'Send confirmation')
-  .setEnableNarrative()
+
   .build();
 
 const executor = new FlowChartExecutor(orderChart);

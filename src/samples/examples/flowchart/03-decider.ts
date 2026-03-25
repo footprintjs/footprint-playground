@@ -13,7 +13,7 @@
  */
 
 import {
-  typedFlowChart,
+  flowChart,
   
   FlowChartExecutor,
   decide,
@@ -42,11 +42,11 @@ const customerDB = new Map([
   ['C-99', { name: 'Eve', plan: 'trial', totalSpend: 0, since: '2025-02-28' }],
 ]);
 
-const chart = typedFlowChart<DeciderState>('LoadCustomer', async (scope) => {
+const chart = flowChart<DeciderState>('LoadCustomer', async (scope) => {
   scope.customer = customerDB.get('C-42')!;
   scope.cartAmount = 150;
 }, 'load-customer')
-  .setEnableNarrative()
+
   .addDeciderFunction('ClassifyTier', (scope) => {
     // decide() auto-captures which values were read and their values.
     // Use filter syntax for flat keys, function syntax for nested/complex logic.

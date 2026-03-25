@@ -118,7 +118,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     );
   };
 
-  // Monkey-patch typedFlowChart() — same pattern, also creates FlowChartBuilder internally
+  // Monkey-patch flowChart() — same pattern, also creates FlowChartBuilder internally
   const proxiedTypedFlowChart = (
     name: string,
     fn: any,
@@ -192,7 +192,6 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     FlowChartExecutor: ProxiedExecutor,
     FlowChartBuilder: ProxiedBuilder,
     flowChart: proxiedFlowChart,
-    typedFlowChart: proxiedTypedFlowChart,
     // CombinedNarrativeBuilder removed in v1.0 — narrative captured via executor.getNarrative()
     console: {
       log: (...args: unknown[]) =>
