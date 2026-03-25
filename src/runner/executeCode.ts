@@ -102,7 +102,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     }
   };
 
-  // Also monkey-patch the flowChart() shorthand — it creates a FlowChartBuilder internally
+  // Monkey-patch flowChart() — embeds TypedScope factory + captures build-time metadata
   const proxiedFlowChart = (
     name: string,
     fn: any,
@@ -110,28 +110,10 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     buildTimeExtractor?: any,
     description?: string
   ) => {
-    return new ProxiedBuilder(buildTimeExtractor).start(
-      name,
-      fn,
-      id,
-      description
-    );
-  };
-
-  // Monkey-patch flowChart() — same pattern, also creates FlowChartBuilder internally
-  const proxiedTypedFlowChart = (
-    name: string,
-    fn: any,
-    id: string,
-    buildTimeExtractor?: any,
-    description?: string
-  ) => {
-    return new ProxiedBuilder(buildTimeExtractor).start(
-      name,
-      fn,
-      id,
-      description
-    );
+    const builder = new ProxiedBuilder(buildTimeExtractor);
+    // Embed TypedScope factory so scope gets $getArgs, $break, typed property access
+    builder.setScopeFactory((footprint as any).createTypedScopeFactory());
+    return builder.start(name, fn, id, description);
   };
 
   // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
