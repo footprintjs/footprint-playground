@@ -665,6 +665,21 @@ function Toolbar({
         </Link>
       )}
 
+      {!isMobile && (
+        <a
+          href="https://footprintjs.github.io/footPrint/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12,
+            color: "var(--text-muted)",
+            textDecoration: "none",
+          }}
+        >
+          Docs
+        </a>
+      )}
+
       <button
         onClick={onToggleTheme}
         style={{

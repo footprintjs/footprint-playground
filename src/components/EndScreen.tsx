@@ -111,6 +111,26 @@ export function EndScreen() {
           Try the Samples
         </Link>
         <a
+          href="https://footprintjs.github.io/footPrint/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "10px 24px",
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: "none",
+            border: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          Read the Docs
+        </a>
+        <a
           href="https://github.com/footprintjs/footPrint"
           target="_blank"
           rel="noopener noreferrer"
