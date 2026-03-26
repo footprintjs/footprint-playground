@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TutorialShell } from "./components/TutorialShell";
-import { restaurantOrder } from "./tutorials/restaurant-order";
+import { loanApplication } from "./tutorials/loan-application";
 import { LiveRunner } from "./components/LiveRunner";
 import { samples } from "./samples/catalog";
 
@@ -12,7 +12,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<TutorialShell tutorial={restaurantOrder} />}
+          element={<TutorialShell tutorial={loanApplication} />}
         />
         <Route path="/samples" element={<Navigate to={`/samples/${defaultSampleId}`} replace />} />
         <Route path="/samples/:sampleId" element={<LiveRunner />} />
