@@ -17,26 +17,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Check out both repos so the symlink src/samples/examples -> ../../../footprint-samples/examples resolves
       - uses: actions/checkout@v4
+        with:
+          path: footprint-playground
+
+      - uses: actions/checkout@v4
+        with:
+          repository: footprintjs/footprint-samples
+          path: footprint-samples
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       # Replace file: links with npm versions for CI
       - name: Swap local deps for npm packages
+        working-directory: footprint-playground
         run: |
           sed -i 's|"footprintjs": "file:../footPrint"|"footprintjs": "^3.0.0"|' package.json
           sed -i 's|"footprint-explainable-ui": "file:../explainable-ui"|"footprint-explainable-ui": "^0.12.0"|' package.json
           rm -f package-lock.json
 
       - run: npm install
+        working-directory: footprint-playground
+
       # Skip tsc type-checking in CI (executeCode.ts monkey-patches internal classes)
       # Vite handles transpilation via sucrase
       - run: npx vite build
+        working-directory: footprint-playground
+
       - run: cp dist/index.html dist/404.html
+        working-directory: footprint-playground
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: footprint-playground/dist
 
   deploy:
     needs: build

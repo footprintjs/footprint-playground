@@ -25,7 +25,10 @@ import breakFnCode from "./examples/features/09-break-fn.ts?raw";
 import contractCode from "./examples/features/10-contract-openapi.ts?raw";
 import flowRecordersCode from "./examples/features/11-flow-recorders.ts?raw";
 import redactionCode from "./examples/features/12-redaction.ts?raw";
-import optionalScopeCode from "./examples/features/13-optional-scope-factory.ts?raw";
+import optionalScopeCode from "./examples/features/13-typed-scope-patterns.ts?raw";
+import decideSelectCode from "./examples/features/16-decide-select.ts?raw";
+import subflowRedactionCode from "./examples/features/17-subflow-redaction.ts?raw";
+import structuralSubflowCode from "./examples/flowchart/07-structural-subflow.ts?raw";
 
 // Flow Recorders
 import simpleObserverCode from "./examples/flow-recorders/01-simple-observer.ts?raw";
@@ -126,6 +129,13 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Retry an unstable API with exponential backoff using loopTo and breakFn.",
     code: loopsCode,
+  },
+  {
+    id: "structural-subflow",
+    name: "Structural Subflow",
+    category: "Flowchart",
+    description: "Attach a pre-executed subflow's structure to the parent for visualization — without re-running it.",
+    code: structuralSubflowCode,
   },
   {
     id: "lazy-subflow",
@@ -240,11 +250,27 @@ export const samples: Sample[] = [
   },
   {
     id: "optional-scope-factory",
-    name: "Optional Scope Factory",
+    name: "TypedScope Patterns",
     category: "Features",
     description:
-      "FlowChartExecutor defaults to ScopeFacade when no scopeFactory is provided — less boilerplate.",
+      "Three ways to use TypedScope: flowChart<T>() shorthand, FlowChartBuilder, and $-method escape hatches.",
     code: optionalScopeCode,
+  },
+  {
+    id: "decide-select",
+    name: "decide() / select()",
+    category: "Features",
+    description:
+      "Auto-capture WHY a decider chose a branch — filter-style rules produce rich narrative: 'creditScore 750 gt 700 → approved'.",
+    code: decideSelectCode,
+  },
+  {
+    id: "subflow-redaction",
+    name: "Subflow Redaction",
+    category: "Features",
+    description:
+      "PII marked redacted in a subflow stage carries through outputMapper to the parent — narrative shows [REDACTED] throughout.",
+    code: subflowRedactionCode,
   },
 
   // ── Flow Recorder Strategies ─────────────────────────────────────────────
