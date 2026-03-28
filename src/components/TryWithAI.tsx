@@ -95,8 +95,8 @@ export function TryWithAI() {
 
   function launch() {
     if (!apiKey.trim()) return;
-    const inputJson = JSON.stringify(
-      {
+    navigate("/claude-demo", {
+      state: {
         apiKey: apiKey.trim(),
         model,
         applicant: {
@@ -106,10 +106,7 @@ export function TryWithAI() {
           monthlyDebts: 1800,
         },
       },
-      null,
-      2,
-    );
-    navigate("/samples/llm-agent-tool", { state: { inputJson } });
+    });
   }
 
   return (
@@ -353,7 +350,8 @@ export function TryWithAI() {
           >
             What this demo does
           </div>
-          Runs a credit decision flowchart, exposes it as an MCP tool via{" "}
+          Opens a live chat where Claude calls a credit-decision flowchart as an
+          MCP tool (via{" "}
           <code
             style={{
               fontFamily: "JetBrains Mono, monospace",
@@ -364,9 +362,8 @@ export function TryWithAI() {
           >
             chart.toMCPTool()
           </code>
-          , and asks Claude to evaluate a loan applicant. Claude calls the tool,
-          FootPrint captures the decision evidence, and the narrative flows back
-          into Claude's response.
+          ). Watch the tool call happen, see the causal trace, then read
+          Claude's explanation — all in one view. Edit the applicant to explore.
         </div>
 
         {/* Launch button */}
