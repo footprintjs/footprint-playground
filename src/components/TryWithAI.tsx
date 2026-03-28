@@ -120,7 +120,7 @@ export function TryWithAI() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: isMobile ? "32px 20px" : "60px 40px",
+        padding: isMobile ? "24px 20px" : "32px 40px",
         background: "var(--bg-primary)",
       }}
     >
@@ -133,7 +133,7 @@ export function TryWithAI() {
           maxWidth: 520,
           display: "flex",
           flexDirection: "column",
-          gap: 28,
+          gap: isMobile ? 16 : 18,
         }}
       >
         {/* Back */}
@@ -155,9 +155,9 @@ export function TryWithAI() {
         <div>
           <h1
             style={{
-              fontSize: isMobile ? 24 : 30,
+              fontSize: isMobile ? 22 : 26,
               fontWeight: 800,
-              margin: "0 0 8px",
+              margin: "0 0 6px",
               color: "var(--text-primary)",
             }}
           >
@@ -310,13 +310,13 @@ export function TryWithAI() {
           >
             Model
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {MODELS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setModel(m.id)}
                 style={{
-                  padding: "8px 14px",
+                  padding: "6px 12px",
                   background: model === m.id ? "var(--phase-build-dim)" : "var(--bg-secondary)",
                   border: `1.5px solid ${model === m.id ? "var(--accent)" : "var(--border)"}`,
                   borderRadius: 8,
@@ -339,7 +339,7 @@ export function TryWithAI() {
         {/* What it does */}
         <div
           style={{
-            padding: "14px 16px",
+            padding: "10px 14px",
             background: "var(--phase-observe-dim)",
             border: "1px solid var(--phase-observe-border)",
             borderRadius: 10,
@@ -374,7 +374,7 @@ export function TryWithAI() {
           onClick={launch}
           disabled={!apiKey.trim()}
           style={{
-            padding: "14px 0",
+            padding: "12px 0",
             background: apiKey.trim()
               ? "linear-gradient(135deg, var(--accent), var(--success))"
               : "var(--bg-tertiary)",
