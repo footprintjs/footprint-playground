@@ -91,16 +91,15 @@ console.log(rec.lines().join("\\n"));`;
 
 const observeCode = `// Auto-generated narrative with decision evidence:
 // Stage 1: The process began with Intake.
-//   [Set] creditScore = 750
-//   [Set] monthlyIncome = 5000
+//   Step 1: Write creditScore = 750
+//   Step 2: Write monthlyIncome = 5000
 // Stage 2: Next, it moved on to Assess.
-//   [Read] creditScore -> 750
-//   [Set] decision = "promising"
+//   Step 1: Read creditScore = 750
+//   Step 2: Write decision = "promising"
 // Stage 3: Next, it moved on to Classify.
-// [Condition]: Evaluated "Good credit":
-//   creditScore 750 gt 700 \u2713, and chose approved.
+// It evaluated Rule 0 "Good credit": creditScore 750 gt 700, and chose Approve.
 // Stage 4: Next, it moved on to Approve.
-//   [Set] decision = "Approved \u2713"`;
+//   Step 1: Write decision = "Approved \u2713"`;
 
 // ─── Node / edge factories for execute phase ─────────────────────────────────
 
