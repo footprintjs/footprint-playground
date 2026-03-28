@@ -89,8 +89,26 @@ export function EndScreen() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
-        style={{ display: "flex", gap: 12 }}
+        style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}
       >
+        <Link
+          to="/"
+          style={{
+            padding: "10px 22px",
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: "none",
+            border: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          ← Home
+        </Link>
         <Link
           to={`/samples/${samples[0].id}`}
           style={{
