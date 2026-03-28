@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import type { TutorialPhase } from "../tutorials/types";
 import { useTheme } from "../ThemeContext";
 
@@ -36,20 +37,21 @@ export function PhaseHeader({ currentPhase, tutorialName, onPhaseClick, isMobile
         background: "var(--bg-secondary)",
       }}
     >
-      {/* Logo */}
-      <div
+      {/* Logo — links back to home */}
+      <Link
+        to="/"
         style={{
           fontSize: isMobile ? 15 : 18,
           fontWeight: 700,
-          background:
-            "linear-gradient(135deg, var(--accent), var(--success))",
+          background: "linear-gradient(135deg, var(--accent), var(--success))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           flexShrink: 0,
+          textDecoration: "none",
         }}
       >
         {isMobile ? "FP" : "FootPrint"}
-      </div>
+      </Link>
 
       {/* Divider */}
       <div

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import {
   ReactFlow,
@@ -45,10 +45,14 @@ export function LiveRunner() {
   const { theme, toggle } = useTheme();
   const { sampleId } = useParams<{ sampleId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
 
   // Resolve sample from URL param, fallback to first sample
   const resolvedSample = samples.find((s) => s.id === sampleId) ?? samples[0];
+
+  // If navigated from TryWithAI (or similar), use the pre-filled inputJson from state
+  const navInputJson = (location.state as { inputJson?: string } | null)?.inputJson;
 
   const [code, setCode] = useState(resolvedSample.code);
   const [result, setResult] = useState<ExecutionResult | null>(null);
@@ -56,8 +60,8 @@ export function LiveRunner() {
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
   // Right panel tabs managed by ExplainableShell internally
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [inputJson, setInputJson] = useState(resolvedSample.defaultInput ?? "");
-  const [inputOpen, setInputOpen] = useState(!!resolvedSample.defaultInput);
+  const [inputJson, setInputJson] = useState(navInputJson ?? resolvedSample.defaultInput ?? "");
+  const [inputOpen, setInputOpen] = useState(!!(navInputJson ?? resolvedSample.defaultInput));
   const [showInputModal, setShowInputModal] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("code");
 
@@ -65,14 +69,15 @@ export function LiveRunner() {
   const selectedSample = resolvedSample;
   const hasDefaultInput = !!selectedSample?.defaultInput;
 
-  // Sync state when URL param changes
+  // Sync state when URL param changes (but preserve navInputJson on first load)
   useEffect(() => {
     setCode(resolvedSample.code);
-    setInputJson(resolvedSample.defaultInput ?? "");
-    setInputOpen(!!resolvedSample.defaultInput);
+    setInputJson(navInputJson ?? resolvedSample.defaultInput ?? "");
+    setInputOpen(!!(navInputJson ?? resolvedSample.defaultInput));
     setResult(null);
     setLeftTab("code");
-
+  // navInputJson intentionally excluded — only re-sync on sample change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedSample.id]);
 
   const handleSampleChange = useCallback((id: string) => {
@@ -587,17 +592,20 @@ function Toolbar({
         flexShrink: 0,
       }}
     >
-      <div
+      <Link
+        to="/"
+        title="Home"
         style={{
           fontWeight: 700,
           fontSize: isMobile ? 14 : 16,
           color: "var(--accent)",
           letterSpacing: "-0.5px",
           flexShrink: 0,
+          textDecoration: "none",
         }}
       >
         FootPrint
-      </div>
+      </Link>
 
       <select
         value={selectedId}
