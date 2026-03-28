@@ -70,12 +70,19 @@ function ProviderCard({
   );
 }
 
+const MODELS = [
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", note: "Fastest · ~$0.0001/run" },
+  { id: "claude-sonnet-4-6",         label: "Sonnet 4.6", note: "Smarter explanations" },
+  { id: "claude-opus-4-5",           label: "Opus 4.5",   note: "Most capable" },
+] as const;
+
 export function TryWithAI() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [provider] = useState<Provider>("claude");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [model, setModel] = useState<string>(MODELS[0].id);
 
   const providerConfig: Record<Provider, { keyLabel: string; keyPlaceholder: string }> = {
     claude: { keyLabel: "Anthropic API Key", keyPlaceholder: "sk-ant-api03-..." },
@@ -90,6 +97,7 @@ export function TryWithAI() {
     const inputJson = JSON.stringify(
       {
         apiKey: apiKey.trim(),
+        model,
         applicant: {
           applicantName: "Sarah Chen",
           creditScore: 720,
@@ -284,6 +292,46 @@ export function TryWithAI() {
           >
             <span>🔒</span>
             Key runs entirely in your browser — never sent to any server.
+          </div>
+        </div>
+
+        {/* Model picker */}
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: 8,
+            }}
+          >
+            Model
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModel(m.id)}
+                style={{
+                  padding: "8px 14px",
+                  background: model === m.id ? "var(--phase-build-dim)" : "var(--bg-secondary)",
+                  border: `1.5px solid ${model === m.id ? "var(--accent)" : "var(--border)"}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "border-color 0.15s, background 0.15s",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: model === m.id ? "var(--accent)" : "var(--text-primary)" }}>
+                  {m.label}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                  {m.note}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 

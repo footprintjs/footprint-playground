@@ -357,6 +357,7 @@ export const samples: Sample[] = [
     defaultInput: JSON.stringify(
       {
         apiKey: "",
+        model: "claude-haiku-4-5-20251001",
         applicant: {
           applicantName: "Sarah Chen",
           creditScore: 720,

@@ -8,6 +8,7 @@
  * INPUT example:
  * {
  *   "apiKey": "sk-ant-api03-...",
+ *   "model": "claude-haiku-4-5-20251001",
  *   "applicant": {
  *     "applicantName": "Sarah Chen",
  *     "creditScore": 720,
@@ -15,6 +16,11 @@
  *     "monthlyDebts": 1800
  *   }
  * }
+ *
+ * Available models (cheapest → most capable):
+ *   claude-haiku-4-5-20251001   — default, ~$0.0001/run
+ *   claude-sonnet-4-5           — smarter explanations
+ *   claude-opus-4-5             — most capable
  */
 
 import { flowChart, FlowChartExecutor, decide } from 'footprint';
@@ -22,10 +28,14 @@ import { z } from 'zod';
 
 (async () => {
 
-const { apiKey, applicant: app } = INPUT as {
+const { apiKey, model: inputModel, applicant: app } = INPUT as {
   apiKey: string;
+  model?: string;
   applicant: { applicantName: string; creditScore: number; monthlyIncome: number; monthlyDebts: number };
 };
+
+const model = inputModel ?? 'claude-haiku-4-5-20251001';
+console.log(`Using model: ${model}`);
 
 if (!apiKey) {
   console.error('Add your Anthropic API key to the INPUT panel: { "apiKey": "sk-ant-..." }');
@@ -136,7 +146,7 @@ console.log(`Asking Claude to assess: ${app.applicantName}`);
 console.log();
 
 const first = await client.messages.create({
-  model: 'claude-opus-4-5',
+  model,
   max_tokens: 512,
   tools: [anthropicTool],
   messages: [
@@ -174,7 +184,7 @@ console.log();
 // ── Feed trace back to Claude ─────────────────────────────────────────
 
 const final = await client.messages.create({
-  model: 'claude-opus-4-5',
+  model,
   max_tokens: 512,
   tools: [anthropicTool],
   messages: [
