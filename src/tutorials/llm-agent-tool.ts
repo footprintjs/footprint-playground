@@ -19,7 +19,7 @@
  *
  * Available models (cheapest → most capable):
  *   claude-haiku-4-5-20251001   — default, ~$0.0001/run
- *   claude-3-5-sonnet-20241022  — proven, great tool use
+ *   claude-3-7-sonnet-20250219  — hybrid reasoning
  *   claude-sonnet-4-6           — smarter explanations
  *   claude-opus-4-5             — most capable
  */
