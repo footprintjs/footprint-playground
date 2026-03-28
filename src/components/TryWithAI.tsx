@@ -71,9 +71,10 @@ function ProviderCard({
 }
 
 const MODELS = [
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", note: "Fastest · ~$0.0001/run" },
-  { id: "claude-sonnet-4-6",         label: "Sonnet 4.6", note: "Smarter explanations" },
-  { id: "claude-opus-4-5",           label: "Opus 4.5",   note: "Most capable" },
+  { id: "claude-haiku-4-5-20251001",  label: "Haiku 4.5",   note: "Fastest · ~$0.0001/run" },
+  { id: "claude-3-5-sonnet-20241022", label: "Sonnet 3.5",  note: "Proven · great tool use" },
+  { id: "claude-sonnet-4-6",          label: "Sonnet 4.6",  note: "Smarter explanations" },
+  { id: "claude-opus-4-5",            label: "Opus 4.5",    note: "Most capable" },
 ] as const;
 
 export function TryWithAI() {

@@ -19,11 +19,12 @@
  *
  * Available models (cheapest → most capable):
  *   claude-haiku-4-5-20251001   — default, ~$0.0001/run
- *   claude-sonnet-4-5           — smarter explanations
+ *   claude-3-5-sonnet-20241022  — proven, great tool use
+ *   claude-sonnet-4-6           — smarter explanations
  *   claude-opus-4-5             — most capable
  */
 
-import { flowChart, FlowChartExecutor, decide } from 'footprint';
+import { flowChart, FlowChartExecutor, decide, MetricRecorder, DebugRecorder } from 'footprint';
 import { z } from 'zod';
 
 (async () => {
@@ -169,16 +170,38 @@ console.log();
 
 // ── Run footprint with Claude's inputs ───────────────────────────────
 
+const metricsRecorder = new MetricRecorder();
+const debugRecorder = new DebugRecorder();
+
 const executor = new FlowChartExecutor(creditDecision);
 executor.enableNarrative();
+executor.attachRecorder(metricsRecorder);
+executor.attachRecorder(debugRecorder);
 await executor.run({ input: toolUse.input });
 
-const narrative = executor.getNarrative();
+const narrativeLines = executor.getNarrative();
 const snapshot = executor.getSnapshot();
 const decision = (snapshot.sharedState as any).decision;
 
 console.log('=== Causal Trace ===');
-narrative.forEach((line) => console.log(' ', line));
+narrativeLines.forEach((line) => console.log(' ', line));
+console.log();
+
+console.log('=== Metrics ===');
+const aggMetrics = metricsRecorder.getMetrics();
+console.log(`  Total: ${aggMetrics.totalDuration}ms · ${aggMetrics.totalReads} reads · ${aggMetrics.totalWrites} writes`);
+for (const [, m] of aggMetrics.stageMetrics) {
+  console.log(`  [${m.stageName}] ${m.totalDuration}ms · ${m.readCount} reads · ${m.writeCount} writes`);
+}
+console.log();
+
+console.log('=== Debug Trace ===');
+debugRecorder.getEntries().forEach((entry) => {
+  if (entry.type === 'read' || entry.type === 'write') {
+    const d = entry.data as { key: string; value: unknown };
+    console.log(`  [${entry.type}] ${entry.stageName} · ${d.key} = ${JSON.stringify(d.value)}`);
+  }
+});
 console.log();
 
 // ── Feed trace back to Claude ─────────────────────────────────────────
@@ -199,7 +222,7 @@ const final = await client.messages.create({
         {
           type: 'tool_result',
           tool_use_id: toolUse.id,
-          content: JSON.stringify({ decision, trace: narrative }),
+          content: JSON.stringify({ decision, trace: narrativeLines }),
         },
       ],
     },
