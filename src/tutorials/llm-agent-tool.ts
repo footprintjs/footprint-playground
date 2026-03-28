@@ -46,7 +46,7 @@ if (!apiKey) {
 // ── Credit Decision Flowchart ─────────────────────────────────────────
 
 interface CreditState {
-  creditScore: number;
+  score: number;
   dti: number;
   riskFactors: string[];
   decision: string;
@@ -56,10 +56,10 @@ const creditDecision = flowChart<CreditState>(
   'AssessCredit',
   async (scope) => {
     const input = scope.$getArgs<typeof app>();
-    scope.creditScore = input.creditScore;
-    scope.dti = Math.round((input.monthlyDebts / (input.monthlyIncome / 12)) * 100) / 100;
+    scope.score = input.creditScore;
+    scope.dti = Math.round((input.monthlyDebts / input.monthlyIncome) * 100) / 100;
     scope.riskFactors = [];
-    console.log(`  Assessing: ${input.applicantName} — score ${input.creditScore}, DTI ${scope.dti}`);
+    console.log(`  Assessing: ${input.applicantName} — score ${scope.score}, DTI ${scope.dti}`);
   },
   'assess-credit',
   undefined,
@@ -72,12 +72,12 @@ const creditDecision = flowChart<CreditState>(
         scope,
         [
           {
-            when: { creditScore: { gte: 700 }, dti: { lt: 0.43 } },
+            when: { score: { gte: 700 }, dti: { lt: 0.43 } },
             then: 'approved',
             label: 'Strong credit profile',
           },
           {
-            when: { creditScore: { lt: 580 } },
+            when: { score: { lt: 580 } },
             then: 'rejected',
             label: 'Credit score below minimum',
           },
