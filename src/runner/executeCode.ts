@@ -1,6 +1,7 @@
 import * as footprint from "footprintjs";
 import { transform } from "sucrase";
 import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 
 export interface RuntimeStageNode {
   id: string;
@@ -116,9 +117,14 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
 
-  // Strip import statements (footprint and zod — both are injected into context)
+  // Strip import statements (footprint, zod, and @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
     /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:\/advanced)?|zod)['"];?\s*\n?/g,
+    ""
+  );
+  // Strip default import from @anthropic-ai/sdk (e.g. `import Anthropic from '@anthropic-ai/sdk';`)
+  cleaned = cleaned.replace(
+    /import\s+\w+\s*from\s*['"]@anthropic-ai\/sdk['"];?\s*\n?/g,
     ""
   );
 
@@ -190,6 +196,8 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     setTimeout,
     clearTimeout,
     Promise,
+    fetch: window.fetch.bind(window),
+    Anthropic,
   };
 
   const contextKeys = Object.keys(context);

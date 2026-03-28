@@ -44,6 +44,9 @@ import structuredErrorCode from "./examples/errors/structured-error-flow.ts?raw"
 // Integrations
 import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 
+// AI Agent Tools
+import llmAgentToolCode from "../tutorials/llm-agent-tool.ts?raw";
+
 export interface Sample {
   id: string;
   name: string;
@@ -341,5 +344,28 @@ export const samples: Sample[] = [
     description:
       "FootPrint complements an existing state machine — each state handler runs a traced flowchart.",
     code: stateMachineCode,
+  },
+
+  // ── AI Agent Tools ────────────────────────────────────────────────────────
+  {
+    id: "llm-agent-tool",
+    name: "Claude Agent + FootPrint Tool",
+    category: "AI Agent Tools",
+    description:
+      "Expose a flowchart as an MCP tool. Claude calls it and explains the decision using the automatic causal trace.",
+    code: llmAgentToolCode,
+    defaultInput: JSON.stringify(
+      {
+        apiKey: "",
+        applicant: {
+          applicantName: "Sarah Chen",
+          creditScore: 720,
+          monthlyIncome: 5000,
+          monthlyDebts: 1800,
+        },
+      },
+      null,
+      2,
+    ),
   },
 ];
