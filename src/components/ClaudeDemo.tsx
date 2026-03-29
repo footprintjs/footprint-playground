@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Anthropic from "@anthropic-ai/sdk";
@@ -21,6 +21,7 @@ interface ExecState {
   spec: unknown;
   narrativeEntries: unknown;
   runtimeStructure: unknown;
+  toolInput: Record<string, unknown>;
   toolOutput: { decision: string; trace: string[] };
   decision: string;
   totalMs: number;
@@ -33,9 +34,6 @@ type ChatMsg =
   | { id: string; kind: "fp_done"; decision: string; totalMs: number }
   | { id: string; kind: "assistant"; text: string }
   | { id: string; kind: "error"; text: string };
-
-// Story phase — drives the right-side reveal
-type StoryPhase = "idle" | "tool_called" | "trace_ready";
 
 // ── Flowchart ──────────────────────────────────────────────────────────────
 
@@ -85,7 +83,8 @@ function buildChart() {
 
   const chart = builder.build();
   const spec = (chart as unknown as Record<string, unknown>).buildTimeStructure;
-  return { chart, spec };
+  const mcpTool = chart.toMCPTool() as { name: string; description: string; inputSchema: Record<string, unknown> };
+  return { chart, spec, mcpTool };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -102,13 +101,9 @@ function decisionInfo(d: string) {
 
 function SystemBubble() {
   return (
-    <div style={{
-      padding: "12px 16px", background: "var(--bg-secondary)",
-      border: "1px solid var(--border)", borderRadius: 12,
-      fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55, maxWidth: 420,
-    }}>
+    <div style={{ padding: "12px 16px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55, maxWidth: 420 }}>
       <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>🤖 Claude</span>{" "}
-      has a credit-decision flowchart as a tool. Send an applicant — watch the story unfold on the right.
+      has a credit-decision flowchart as a tool. Send an applicant — step through the story on the right.
     </div>
   );
 }
@@ -116,18 +111,11 @@ function SystemBubble() {
 function UserBubble({ applicant }: { applicant: ApplicantData }) {
   return (
     <div style={{ display: "flex", justifyContent: "flex-end" }}>
-      <div style={{
-        padding: "12px 16px", background: "var(--accent)",
-        borderRadius: "12px 12px 2px 12px", color: "white", fontSize: 13, maxWidth: 280,
-      }}>
-        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 6, letterSpacing: "0.06em" }}>
-          ASSESS APPLICATION
-        </div>
+      <div style={{ padding: "12px 16px", background: "var(--accent)", borderRadius: "12px 12px 2px 12px", color: "white", fontSize: 13, maxWidth: 280 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 6, letterSpacing: "0.06em" }}>ASSESS APPLICATION</div>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>👤 {applicant.applicantName}</div>
         <div style={{ opacity: 0.9, fontSize: 12 }}>Score: {applicant.creditScore}</div>
-        <div style={{ opacity: 0.9, fontSize: 12 }}>
-          Income: ${applicant.monthlyIncome.toLocaleString()}/mo · Debts: ${applicant.monthlyDebts.toLocaleString()}/mo
-        </div>
+        <div style={{ opacity: 0.9, fontSize: 12 }}>Income: ${applicant.monthlyIncome.toLocaleString()}/mo · Debts: ${applicant.monthlyDebts.toLocaleString()}/mo</div>
       </div>
     </div>
   );
@@ -139,8 +127,7 @@ function ThinkingBubble({ label }: { label: string }) {
       <div style={{ display: "flex", gap: 3 }}>
         {[0, 1, 2].map(i => (
           <motion.div key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
-            style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--text-muted)" }}
-          />
+            style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--text-muted)" }} />
         ))}
       </div>
       {label}
@@ -151,10 +138,7 @@ function ThinkingBubble({ label }: { label: string }) {
 function FpDoneBubble({ decision, totalMs }: { decision: string; totalMs: number }) {
   const di = decisionInfo(decision);
   return (
-    <div style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "5px 10px", background: di.bg, border: `1px solid ${di.border}`, borderRadius: 7, fontSize: 12,
-    }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", background: di.bg, border: `1px solid ${di.border}`, borderRadius: 7, fontSize: 12 }}>
       <span style={{ fontWeight: 700, color: di.color }}>🔧 FootPrint</span>
       <span style={{ color: "var(--text-muted)" }}>{totalMs}ms →</span>
       <span style={{ fontWeight: 700, color: di.color }}>{di.label}</span>
@@ -164,14 +148,8 @@ function FpDoneBubble({ decision, totalMs }: { decision: string; totalMs: number
 
 function AssistantBubble({ text }: { text: string }) {
   return (
-    <div style={{
-      padding: "12px 16px", background: "var(--bg-secondary)",
-      border: "1px solid var(--border)", borderRadius: "12px 12px 12px 2px",
-      fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, maxWidth: 420, whiteSpace: "pre-wrap",
-    }}>
-      <div style={{ fontWeight: 700, color: "var(--accent)", marginBottom: 8, fontSize: 11, letterSpacing: "0.05em" }}>
-        🤖 CLAUDE
-      </div>
+    <div style={{ padding: "12px 16px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "12px 12px 12px 2px", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, maxWidth: 420, whiteSpace: "pre-wrap" }}>
+      <div style={{ fontWeight: 700, color: "var(--accent)", marginBottom: 8, fontSize: 11, letterSpacing: "0.05em" }}>🤖 CLAUDE</div>
       {text}
     </div>
   );
@@ -185,233 +163,277 @@ function ErrorBubble({ text }: { text: string }) {
   );
 }
 
-// ── Story Panel ─────────────────────────────────────────────────────────────
+// ── Wizard Slide Components ─────────────────────────────────────────────────
 
-const STORY_STEPS = [
-  { label: "① The Tool" },
-  { label: "② Claude Called" },
-  { label: "③ The Trace" },
+function CodeBlock({ value }: { value: unknown }) {
+  return (
+    <pre style={{
+      margin: 0, padding: "12px 14px",
+      background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8,
+      fontSize: 11, lineHeight: 1.7, color: "var(--text-secondary)",
+      fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word",
+      overflowX: "auto",
+    }}>
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}
+
+function SlideLabel({ children }: { children: string }) {
+  return (
+    <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+      {children}
+    </div>
+  );
+}
+
+function Insight({ children }: { children: string }) {
+  return (
+    <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--phase-observe-dim)", border: "1px solid var(--phase-observe-border)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.65, fontStyle: "italic" }}>
+      {children}
+    </div>
+  );
+}
+
+// Slide 1 — tool description (always available)
+function SlideToolDescription({ mcpTool }: { mcpTool: { name: string; description: string; inputSchema: Record<string, unknown> } }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <SlideLabel>Tool name</SlideLabel>
+        <div style={{ padding: "8px 12px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 700, color: "var(--accent)", fontFamily: "JetBrains Mono, monospace" }}>
+          {mcpTool.name}
+        </div>
+      </div>
+      <div>
+        <SlideLabel>Description — what Claude reads to decide whether to call this tool</SlideLabel>
+        <div style={{ padding: "10px 14px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.65, fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap" }}>
+          {mcpTool.description}
+        </div>
+      </div>
+      <div>
+        <SlideLabel>Input schema — auto-generated from .contract()</SlideLabel>
+        <CodeBlock value={mcpTool.inputSchema} />
+      </div>
+      <Insight>
+        Auto-generated from chart.toMCPTool() — no hand-written tool description that can drift from reality. The graph structure IS the description.
+      </Insight>
+    </div>
+  );
+}
+
+// Slide 2 — the tool call: what Claude sent + what FootPrint returned
+function SlideToolCall({ execState }: { execState: ExecState | null }) {
+  if (!execState) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "var(--text-muted)", textAlign: "center" }}>
+        <div style={{ fontSize: 32 }}>📨</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Send an applicant to see the tool call</div>
+        <div style={{ fontSize: 12, maxWidth: 260, lineHeight: 1.6 }}>Claude will invoke the flowchart tool — you'll see exactly what it sends and what FootPrint returns.</div>
+      </div>
+    );
+  }
+
+  const di = decisionInfo(execState.decision);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <SlideLabel>What Claude sent to the tool</SlideLabel>
+        <CodeBlock value={execState.toolInput} />
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+            What FootPrint returned
+          </div>
+          <div style={{ padding: "2px 8px", background: di.bg, border: `1px solid ${di.border}`, borderRadius: 5, fontSize: 11, fontWeight: 700, color: di.color }}>
+            {di.label}
+          </div>
+        </div>
+        <CodeBlock value={execState.toolOutput} />
+      </div>
+      <Insight>
+        The causal trace is in the tool result — that's what Claude reads to produce a precise explanation. No hallucination. No reconstruction.
+      </Insight>
+    </div>
+  );
+}
+
+// Slide 3 — how the trace was built (ExplainableShell)
+function SlideHowBuilt({ execState }: { execState: ExecState | null }) {
+  if (!execState) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, color: "var(--text-muted)", textAlign: "center" }}>
+        <div style={{ fontSize: 32 }}>⚡</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>Run the demo to unlock time travel</div>
+        <div style={{ fontSize: 12, maxWidth: 260, lineHeight: 1.6 }}>After execution, you'll be able to step through every stage, see each read/write, and explore why the decision was made.</div>
+      </div>
+    );
+  }
+
+  return (
+    <ExplainableShell
+      runtimeSnapshot={execState.snapshot as any}
+      spec={(execState.runtimeStructure ?? execState.spec) as any}
+      title="Credit Decision"
+      logs={[]}
+      narrativeEntries={execState.narrativeEntries as any}
+      tabs={["explainable", "result", "ai-compatible"]}
+      defaultTab="explainable"
+      defaultExpanded={{ details: true }}
+    />
+  );
+}
+
+// ── Wizard Navigation ───────────────────────────────────────────────────────
+
+const SLIDES = [
+  { icon: "📋", title: "What Claude Sees", subtitle: "Tool description — auto-generated from structure" },
+  { icon: "📨", title: "The Tool Call",     subtitle: "What Claude sent · what FootPrint returned" },
+  { icon: "⚡", title: "How It Was Built",  subtitle: "Time travel through every decision" },
 ];
 
-function StoryProgressBar({ phase }: { phase: StoryPhase }) {
-  const activeIdx = phase === "idle" ? 0 : phase === "tool_called" ? 1 : 2;
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir * 48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir * -48, opacity: 0 }),
+};
+
+interface WizardPanelProps {
+  mcpTool: { name: string; description: string; inputSchema: Record<string, unknown> };
+  execState: ExecState | null;
+  hasNewData: boolean;
+}
+
+function WizardPanel({ mcpTool, execState, hasNewData }: WizardPanelProps) {
+  const [slide, setSlide] = useState(0);
+  const [dir, setDir] = useState(1);
+
+  // When execution completes and user is on slide 0, nudge to slide 1
+  useEffect(() => {
+    if (hasNewData && slide === 0) {
+      setDir(1);
+      setSlide(1);
+    }
+  }, [hasNewData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function goTo(n: number) {
+    if (n < 0 || n >= SLIDES.length) return;
+    setDir(n > slide ? 1 : -1);
+    setSlide(n);
+  }
+
+  const isLast = slide === SLIDES.length - 1;
+  const isFirst = slide === 0;
+
   return (
-    <div style={{ display: "flex", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-      {STORY_STEPS.map((step, i) => (
-        <div key={step.label} style={{
-          flex: 1, padding: "8px 0", textAlign: "center",
-          fontSize: 11, fontWeight: 700,
-          color: i <= activeIdx ? "var(--accent)" : "var(--text-muted)",
-          borderBottom: `2px solid ${i <= activeIdx ? "var(--accent)" : "transparent"}`,
-          transition: "color 0.4s, border-color 0.4s",
-        }}>
-          {step.label}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+
+      {/* Slide header */}
+      <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          Step {slide + 1} of {SLIDES.length}
         </div>
-      ))}
-    </div>
-  );
-}
-
-// Flowchart diagram — highlights the taken branch after decision
-function FlowchartDiagram({ decision }: { decision?: string }) {
-  const taken = decision?.includes("APPROVED") ? "approved"
-    : decision?.includes("REJECTED") ? "rejected"
-    : decision ? "manual-review"
-    : undefined;
-
-  const branches = [
-    { id: "approved", label: "✅ Approve", activeColor: "#22c55e" },
-    { id: "rejected", label: "❌ Reject", activeColor: "#ef4444" },
-    { id: "manual-review", label: "⚠️ Review", activeColor: "#f59e0b" },
-  ];
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "4px 0" }}>
-      {/* Stage: AssessCredit */}
-      <div style={{
-        padding: "7px 20px", background: "var(--phase-build-dim)",
-        border: "1.5px solid var(--accent)", borderRadius: 8,
-        fontSize: 12, fontWeight: 700, color: "var(--accent)",
-      }}>
-        AssessCredit
-      </div>
-      <div style={{ fontSize: 16, color: "var(--text-muted)", lineHeight: 1 }}>↓</div>
-      {/* Decider: CreditDecision */}
-      <div style={{
-        padding: "7px 20px", background: "var(--phase-observe-dim)",
-        border: "1.5px solid var(--success)", borderRadius: 8,
-        fontSize: 12, fontWeight: 700, color: "var(--success)",
-      }}>
-        ◇ CreditDecision
-      </div>
-      <div style={{ fontSize: 16, color: "var(--text-muted)", lineHeight: 1 }}>↓</div>
-      {/* Branches */}
-      <div style={{ display: "flex", gap: 8 }}>
-        {branches.map(b => {
-          const isActive = b.id === taken;
-          const isOther = taken && !isActive;
-          return (
-            <div key={b.id} style={{
-              padding: "5px 10px",
-              border: `1.5px solid ${isActive ? b.activeColor : "var(--border)"}`,
-              borderRadius: 6,
-              fontSize: 11, fontWeight: 700,
-              color: isActive ? b.activeColor : "var(--text-muted)",
-              background: isActive ? `${b.activeColor}15` : "transparent",
-              opacity: isOther ? 0.35 : 1,
-              transition: "all 0.4s",
-            }}>
-              {b.label}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Story card shell
-function SlideCard({ children, accentColor, delay = 0 }: { children: ReactNode; accentColor: string; delay?: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay }}
-      style={{
-        background: "var(--bg-secondary)",
-        border: `1px solid ${accentColor}`,
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function SlideHeader({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
-  return (
-    <div style={{
-      padding: "11px 16px", borderBottom: "1px solid var(--border)",
-      background: "var(--bg-tertiary)",
-      display: "flex", alignItems: "center", gap: 10,
-    }}>
-      <span style={{ fontSize: 18 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{title}</div>
-        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{subtitle}</div>
-      </div>
-    </div>
-  );
-}
-
-function Quote({ children }: { children: ReactNode }) {
-  return (
-    <div style={{
-      margin: "12px 0 0",
-      padding: "9px 12px",
-      background: "var(--bg-tertiary)",
-      border: "1px solid var(--border)",
-      borderLeft: "3px solid var(--accent)",
-      borderRadius: "0 8px 8px 0",
-      fontSize: 11, color: "var(--text-muted)", lineHeight: 1.65, fontStyle: "italic",
-    }}>
-      {children}
-    </div>
-  );
-}
-
-// Slide 1 — always visible: The Tool
-function SlideTheTool({ decision }: { decision?: string }) {
-  return (
-    <SlideCard accentColor="var(--accent)">
-      <SlideHeader
-        icon="🔧"
-        title="The Flowchart IS the Tool"
-        subtitle="chart.toMCPTool() — auto-generated from structure, no hand-written description"
-      />
-      <div style={{ padding: "16px" }}>
-        <FlowchartDiagram decision={decision} />
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
-            What the pattern produces
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, lineHeight: 1.55 }}>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>Build-time</div>
-              <div style={{ color: "var(--text-muted)" }}>Self-describing tool — graph structure generates the MCP schema</div>
-            </div>
-            <div style={{ flex: 1, padding: "8px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, lineHeight: 1.55 }}>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>Runtime</div>
-              <div style={{ color: "var(--text-muted)" }}>Causal trace — every read, write, decision captured during traversal</div>
-            </div>
-          </div>
-          <Quote>
-            "MCP standardizes the envelope. The pattern is the letter." — The tool description is real; the internals are no longer a black box.
-          </Quote>
+        <div style={{ fontSize: 17, fontWeight: 800, color: "var(--text-primary)", marginTop: 3, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>{SLIDES[slide].icon}</span>
+          {SLIDES[slide].title}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+          {SLIDES[slide].subtitle}
         </div>
       </div>
-    </SlideCard>
+
+      {/* Slide content */}
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        <AnimatePresence mode="wait" custom={dir}>
+          <motion.div
+            key={slide}
+            custom={dir}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.22, ease: "easeInOut" }}
+            style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column",
+              overflow: slide === 2 ? "hidden" : "auto",
+              padding: slide === 2 ? 0 : "20px",
+            }}
+          >
+            {slide === 0 && <SlideToolDescription mcpTool={mcpTool} />}
+            {slide === 1 && <SlideToolCall execState={execState} />}
+            {slide === 2 && <SlideHowBuilt execState={execState} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation bar */}
+      <div style={{
+        padding: "10px 20px", borderTop: "1px solid var(--border)", background: "var(--bg-secondary)",
+        display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+      }}>
+        {/* Prev */}
+        <button
+          onClick={() => goTo(slide - 1)}
+          disabled={isFirst}
+          style={{
+            padding: "7px 14px", background: isFirst ? "transparent" : "var(--bg-tertiary)",
+            border: "1px solid var(--border)", borderRadius: 8,
+            color: isFirst ? "var(--text-muted)" : "var(--text-primary)",
+            fontSize: 12, fontWeight: 600, cursor: isFirst ? "default" : "pointer",
+            opacity: isFirst ? 0.3 : 1,
+          }}
+        >
+          ← Prev
+        </button>
+
+        {/* Step dots */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {SLIDES.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              title={s.title}
+              style={{
+                width: i === slide ? 22 : 8, height: 8,
+                borderRadius: 4,
+                background: i === slide ? "var(--accent)" : i < slide ? "var(--success)" : "var(--border)",
+                border: "none", cursor: "pointer",
+                transition: "all 0.25s",
+                padding: 0,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Next */}
+        <button
+          onClick={() => goTo(slide + 1)}
+          disabled={isLast}
+          style={{
+            padding: "7px 14px",
+            background: isLast ? "transparent"
+              : (slide === 0 && !execState) ? "linear-gradient(135deg, var(--accent), var(--success))"
+              : "var(--bg-tertiary)",
+            border: isLast ? "1px solid var(--border)" : `1px solid ${(slide === 0 && !execState) ? "transparent" : "var(--border)"}`,
+            borderRadius: 8,
+            color: isLast ? "var(--text-muted)"
+              : (slide === 0 && !execState) ? "white"
+              : "var(--text-primary)",
+            fontSize: 12, fontWeight: 700,
+            cursor: isLast ? "default" : "pointer",
+            opacity: isLast ? 0.3 : 1,
+          }}
+        >
+          Next →
+        </button>
+      </div>
+    </div>
   );
 }
 
-// Slide 2 — appears after Claude calls: What Claude Sent
-function SlideClaudeCalled({ toolInput }: { toolInput: Record<string, unknown> }) {
-  return (
-    <SlideCard accentColor="var(--success)" delay={0.05}>
-      <SlideHeader
-        icon="🤖"
-        title="Claude Invoked the Tool"
-        subtitle="FootPrint is now executing with exactly these inputs"
-      />
-      <div style={{ padding: "16px" }}>
-        <pre style={{
-          margin: 0, padding: "10px 12px",
-          background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8,
-          fontSize: 11, lineHeight: 1.65, color: "var(--text-secondary)",
-          fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word",
-        }}>
-          {JSON.stringify(toolInput, null, 2)}
-        </pre>
-        <Quote>
-          Claude inferred the input schema from the flowchart structure — no hand-written tool description that could drift from reality.
-        </Quote>
-      </div>
-    </SlideCard>
-  );
-}
-
-// Slide 3 — appears after execution: Time Travel + Narrative
-function SlideThTrace({ execState }: { execState: ExecState }) {
-  return (
-    <SlideCard accentColor="var(--phase-observe-border)" delay={0.05}>
-      <SlideHeader
-        icon="⚡"
-        title="The Causal Trace"
-        subtitle="Collected during traversal — time travel through every decision"
-      />
-      <div style={{ height: 460, overflow: "hidden" }}>
-        <ExplainableShell
-          runtimeSnapshot={execState.snapshot as any}
-          spec={(execState.runtimeStructure ?? execState.spec) as any}
-          title="Credit Decision"
-          logs={[]}
-          narrativeEntries={execState.narrativeEntries as any}
-          tabs={["explainable", "result", "ai-compatible"]}
-          defaultTab="explainable"
-          defaultExpanded={{ details: true }}
-        />
-      </div>
-      <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)", background: "var(--bg-tertiary)" }}>
-        <Quote>
-          This trace was returned to Claude as the tool result. That's why the explanation is precise — not hallucinated. The trace does the reasoning for the model.
-        </Quote>
-      </div>
-    </SlideCard>
-  );
-}
-
-// ── Form fields ────────────────────────────────────────────────────────────
+// ── Form fields ─────────────────────────────────────────────────────────────
 
 const FORM_FIELDS: Array<{ key: keyof ApplicantData; label: string; type: "text" | "number" }> = [
   { key: "applicantName", label: "Name", type: "text" },
@@ -425,7 +447,6 @@ const FORM_FIELDS: Array<{ key: keyof ApplicantData; label: string; type: "text"
 export function ClaudeDemo() {
   const location = useLocation();
   const isMobile = useIsMobile();
-
   const navState = (location.state as { apiKey?: string; model?: string; applicant?: Partial<ApplicantData> } | null) ?? {};
 
   const [apiKey] = useState(navState.apiKey ?? "");
@@ -440,31 +461,19 @@ export function ClaudeDemo() {
   const [messages, setMessages] = useState<ChatMsg[]>([{ id: "intro", kind: "system" }]);
   const [running, setRunning] = useState(false);
   const [execState, setExecState] = useState<ExecState | null>(null);
-  const [storyPhase, setStoryPhase] = useState<StoryPhase>("idle");
-  const [toolInputCapture, setToolInputCapture] = useState<Record<string, unknown> | null>(null);
+  // Bumped each time new execution data arrives — tells wizard to auto-advance
+  const [execTick, setExecTick] = useState(0);
 
-  const { chart, spec } = useMemo(() => buildChart(), []);
+  const { chart, spec, mcpTool } = useMemo(() => buildChart(), []);
   const chatBottomRef = useRef<HTMLDivElement>(null);
-  const storyBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-scroll story feed as new slides appear
-  useEffect(() => {
-    if (storyPhase !== "idle") {
-      setTimeout(() => storyBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 150);
-    }
-  }, [storyPhase]);
-
   async function send() {
     if (running || !apiKey.trim()) return;
     setRunning(true);
-
-    // Reset story for new run
-    setStoryPhase("idle");
-    setToolInputCapture(null);
     setExecState(null);
 
     const thinkingId = uid();
@@ -479,18 +488,15 @@ export function ClaudeDemo() {
     try {
       const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
-      const mcpTool = chart.toMCPTool();
       const anthropicTool = {
         name: mcpTool.name,
         description: mcpTool.description,
         input_schema: mcpTool.inputSchema,
       } as Anthropic.Tool;
 
-      // Turn 1: Claude decides to call the tool
+      // Turn 1: Claude calls the tool
       const first = await client.messages.create({
-        model,
-        max_tokens: 512,
-        tools: [anthropicTool],
+        model, max_tokens: 512, tools: [anthropicTool],
         messages: [{ role: "user", content: `Please assess this loan application:\n${JSON.stringify(snap, null, 2)}` }],
       });
 
@@ -499,15 +505,11 @@ export function ClaudeDemo() {
         throw new Error("Claude did not call the tool — try a different model.");
       }
 
-      // Story: slide 2 unlocks
-      setToolInputCapture(toolUse.input as Record<string, unknown>);
-      setStoryPhase("tool_called");
-
       setMessages(prev => prev.map(m =>
         m.id === thinkingId ? { id: thinkingId, kind: "thinking" as const, label: "FootPrint running..." } : m
       ));
 
-      // Run FootPrint with Claude's inputs
+      // Run FootPrint
       const metricsRecorder = new MetricRecorder();
       const executor = new FlowChartExecutor(chart);
       executor.enableNarrative();
@@ -522,15 +524,12 @@ export function ClaudeDemo() {
       const agg = metricsRecorder.getMetrics();
       const toolOutput = { decision, trace };
 
-      const newExecState: ExecState = {
+      setExecState({
         snapshot, spec, narrativeEntries, runtimeStructure,
+        toolInput: toolUse.input as Record<string, unknown>,
         toolOutput, decision, totalMs: Math.round(agg.totalDuration),
-      };
-
-      setExecState(newExecState);
-
-      // Story: slide 3 unlocks
-      setStoryPhase("trace_ready");
+      });
+      setExecTick(t => t + 1); // signal wizard to advance
 
       setMessages(prev => prev.map(m =>
         m.id === thinkingId
@@ -538,15 +537,13 @@ export function ClaudeDemo() {
           : m
       ));
 
-      // Turn 2: feed trace back to Claude for explanation
+      // Turn 2: Claude explains
       const thinkingId2 = uid();
       const assistantId = uid();
       setMessages(prev => [...prev, { id: thinkingId2, kind: "thinking", label: "Claude is explaining..." }]);
 
       const final = await client.messages.create({
-        model,
-        max_tokens: 600,
-        tools: [anthropicTool],
+        model, max_tokens: 600, tools: [anthropicTool],
         messages: [
           { role: "user", content: `Please assess this loan application:\n${JSON.stringify(snap, null, 2)}` },
           { role: "assistant", content: first.content },
@@ -563,10 +560,7 @@ export function ClaudeDemo() {
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setMessages(prev =>
-        prev.filter(m => m.kind !== "thinking")
-          .concat({ id: uid(), kind: "error", text: msg })
-      );
+      setMessages(prev => prev.filter(m => m.kind !== "thinking").concat({ id: uid(), kind: "error", text: msg }));
     } finally {
       setRunning(false);
     }
@@ -580,13 +574,10 @@ export function ClaudeDemo() {
       {/* Header */}
       <header style={{
         padding: isMobile ? "10px 14px" : "10px 24px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg-secondary)",
+        borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)",
         display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, flexShrink: 0,
       }}>
-        <Link to="/try-with-ai" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", flexShrink: 0 }}>
-          ← Back
-        </Link>
+        <Link to="/try-with-ai" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", flexShrink: 0 }}>← Back</Link>
         <div style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Claude + FootPrint</span>
@@ -605,13 +596,7 @@ export function ClaudeDemo() {
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT: Chat */}
-        <div style={{
-          width: isMobile ? "100%" : "38%",
-          display: "flex", flexDirection: "column", overflow: "hidden",
-          borderRight: isMobile ? "none" : "1px solid var(--border)",
-          flexShrink: 0,
-        }}>
-          {/* Messages */}
+        <div style={{ width: isMobile ? "100%" : "38%", display: "flex", flexDirection: "column", overflow: "hidden", borderRight: isMobile ? "none" : "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 12px" : "20px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <AnimatePresence initial={false}>
               {messages.map(msg => (
@@ -628,7 +613,6 @@ export function ClaudeDemo() {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Applicant form + send */}
           <div style={{ borderTop: "1px solid var(--border)", padding: isMobile ? "12px" : "14px 20px", background: "var(--bg-secondary)", flexShrink: 0 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
               {FORM_FIELDS.map(field => (
@@ -662,31 +646,14 @@ export function ClaudeDemo() {
           </div>
         </div>
 
-        {/* RIGHT: Story slides */}
+        {/* RIGHT: Wizard */}
         {!isMobile && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-
-            {/* Story progress indicator */}
-            <StoryProgressBar phase={storyPhase} />
-
-            {/* Scrollable story feed — slides reveal progressively */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Slide 1: The Tool — always visible, updates to show decision after run */}
-              <SlideTheTool decision={execState?.decision} />
-
-              {/* Slide 2: Claude Called — unlocks when tool is invoked */}
-              <AnimatePresence>
-                {toolInputCapture && <SlideClaudeCalled key="called" toolInput={toolInputCapture} />}
-              </AnimatePresence>
-
-              {/* Slide 3: The Trace — unlocks after FootPrint executes */}
-              <AnimatePresence>
-                {execState && <SlideThTrace key="trace" execState={execState} />}
-              </AnimatePresence>
-
-              <div ref={storyBottomRef} />
-            </div>
+          <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+            <WizardPanel
+              mcpTool={mcpTool}
+              execState={execState}
+              hasNewData={execTick > 0}
+            />
           </div>
         )}
       </div>
