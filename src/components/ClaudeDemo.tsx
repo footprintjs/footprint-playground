@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { flowChart, FlowChartExecutor, decide, MetricRecorder } from "footprintjs";
+import { ExplainableShell } from "footprint-explainable-ui";
 import { useIsMobile } from "../hooks/useIsMobile";
 import llmCode from "../tutorials/llm-agent-tool.ts?raw";
 
@@ -16,23 +17,16 @@ interface ApplicantData {
   monthlyDebts: number;
 }
 
-interface StageResult {
-  name: string;
-  durationMs: number;
-}
-
-interface ExecutionData {
-  stages: StageResult[];
-  trace: string[];
+interface ExecState {
+  snapshot: unknown;
+  spec: unknown;
+  narrativeEntries: unknown;
+  runtimeStructure: unknown;
+  toolInput: Record<string, unknown>;
+  toolOutput: { decision: string; trace: string[] };
   decision: string;
-  dti: number;
   totalMs: number;
 }
-
-type FlowState =
-  | { status: "idle" }
-  | { status: "running" }
-  | { status: "done"; data: ExecutionData };
 
 type ChatMsg =
   | { id: string; kind: "system" }
@@ -41,6 +35,8 @@ type ChatMsg =
   | { id: string; kind: "fp_done"; decision: string; totalMs: number }
   | { id: string; kind: "assistant"; text: string }
   | { id: string; kind: "error"; text: string };
+
+type RightTab = "explainable" | "io" | "code";
 
 // ── Flowchart ──────────────────────────────────────────────────────────────
 
@@ -51,7 +47,7 @@ interface CreditState {
 }
 
 function buildChart() {
-  return flowChart<CreditState>(
+  const builder = flowChart<CreditState>(
     "AssessCredit",
     async (scope) => {
       const input = scope.$getArgs<ApplicantData>();
@@ -86,207 +82,21 @@ function buildChart() {
         monthlyIncome: z.number(),
         monthlyDebts: z.number(),
       }),
-    })
-    .build();
+    });
+
+  const chart = builder.build();
+  const spec = (chart as unknown as Record<string, unknown>).buildTimeStructure;
+  return { chart, spec };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
-function decisionInfo(d: string): { color: string; label: string; bg: string; border: string } {
+function decisionInfo(d: string) {
   if (d.includes("APPROVED")) return { color: "#22c55e", label: "✅ APPROVED", bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.3)" };
   if (d.includes("REJECTED")) return { color: "#ef4444", label: "❌ REJECTED", bg: "rgba(239,68,68,0.1)", border: "rgba(239,68,68,0.3)" };
   return { color: "#f59e0b", label: "⚠️ MANUAL REVIEW", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.3)" };
-}
-
-// ── Flow Panel (right side visualization) ─────────────────────────────────
-
-function FlowPanel({ state, applicant }: { state: FlowState; applicant: ApplicantData }) {
-  const dti = state.status === "done" ? state.data.dti : Math.round((applicant.monthlyDebts / applicant.monthlyIncome) * 100) / 100;
-  const running = state.status === "running";
-  const done = state.status === "done";
-  const data = done ? state.data : null;
-
-  const decision = data?.decision ?? "";
-  const di = data ? decisionInfo(decision) : null;
-  const branchStage = done ? (decision.includes("APPROVED") ? "Approve" : decision.includes("REJECTED") ? "Reject" : "ManualReview") : null;
-
-  const stageBoxStyle = (active: boolean) => ({
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
-    background: active ? "var(--phase-build-dim)" : "var(--bg-secondary)",
-    opacity: running ? 0.5 : 1,
-    transition: "all 0.3s",
-    position: "relative" as const,
-  });
-
-  const pulse = running ? {
-    animate: { opacity: [0.4, 1, 0.4] },
-    transition: { duration: 1.5, repeat: Infinity },
-  } : {};
-
-  return (
-    <div style={{
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      padding: "20px 16px",
-      overflowY: "auto",
-      gap: 0,
-    }}>
-      {/* Header */}
-      <div style={{
-        fontSize: 11, fontWeight: 700, color: "var(--text-muted)",
-        textTransform: "uppercase", letterSpacing: "0.08em",
-        marginBottom: 20,
-      }}>
-        FootPrint Execution
-      </div>
-
-      {/* Idle hint */}
-      {state.status === "idle" && (
-        <div style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.6 }}>
-          Send an applicant to see the flowchart execute live.
-        </div>
-      )}
-
-      {/* Stages */}
-      {state.status !== "idle" && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 0 }}>
-
-          {/* Stage 1: AssessCredit */}
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: running ? 0.5 : 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0 }}
-            {...pulse}
-          >
-            <div style={stageBoxStyle(done)}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Stage 1</div>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: done ? 6 : 0 }}>
-                AssessCredit
-              </div>
-              {done && (
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span>creditScore: <strong>{applicant.creditScore}</strong></span>
-                  <span>dti: <strong style={{ color: "var(--accent)" }}>{dti}</strong></span>
-                  {data && <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{data.stages[0]?.durationMs ?? 0}ms</span>}
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Connector */}
-          <motion.div
-            initial={{ scaleY: 0 }}
-            animate={{ scaleY: done ? 1 : 0.3 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
-            style={{ width: 2, height: 20, background: done ? "var(--accent)" : "var(--border)", alignSelf: "center", transformOrigin: "top" }}
-          />
-
-          {/* Stage 2: CreditDecision */}
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: running ? 0.5 : 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            {...pulse}
-          >
-            <div style={stageBoxStyle(done)}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Decision</div>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: done ? 6 : 0 }}>
-                CreditDecision
-              </div>
-              {done && (
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ color: applicant.creditScore >= 700 ? "#22c55e" : "#ef4444" }}>
-                    score {applicant.creditScore} {applicant.creditScore >= 700 ? "≥" : "<"} 700 {applicant.creditScore >= 700 ? "✓" : "✗"}
-                  </span>
-                  <span style={{ color: dti < 0.43 ? "#22c55e" : "#f59e0b" }}>
-                    dti {dti} {dti < 0.43 ? "<" : "≥"} 0.43 {dti < 0.43 ? "✓" : "✗"}
-                  </span>
-                  {data && <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{data.stages[1]?.durationMs ?? 0}ms</span>}
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Branch connector */}
-          {done && di && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.35 }}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
-            >
-              <div style={{ width: 2, height: 12, background: di.color }} />
-              <div style={{ fontSize: 10, color: di.color, fontWeight: 700, marginBottom: 4 }}>
-                {decision.includes("APPROVED") ? "approved" : decision.includes("REJECTED") ? "rejected" : "manual-review"}
-              </div>
-            </motion.div>
-          )}
-          {running && (
-            <div style={{ width: 2, height: 20, background: "var(--border)", alignSelf: "center" }} />
-          )}
-
-          {/* Stage 3: Branch outcome */}
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: running ? 0.5 : 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
-            {...pulse}
-          >
-            <div style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: done && di ? `1.5px solid ${di.border}` : "1.5px solid var(--border)",
-              background: done && di ? di.bg : "var(--bg-secondary)",
-              opacity: running ? 0.5 : 1,
-              transition: "all 0.3s",
-            }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Outcome</div>
-              <div style={{ fontWeight: 700, color: done && di ? di.color : "var(--text-primary)" }}>
-                {done ? branchStage : "—"}
-              </div>
-              {done && di && (
-                <div style={{ fontSize: 13, fontWeight: 800, color: di.color, marginTop: 4 }}>
-                  {di.label}
-                </div>
-              )}
-              {done && data && (
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                  {data.totalMs}ms total
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Causal trace */}
-          {done && data && data.trace.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              style={{ marginTop: 20 }}
-            >
-              <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-                Causal Trace
-              </div>
-              {data.trace.map((line, i) => (
-                <div key={i} style={{
-                  fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6,
-                  paddingLeft: 8, borderLeft: "2px solid var(--border)", marginBottom: 4,
-                }}>
-                  {line}
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ── Chat message components ────────────────────────────────────────────────
@@ -294,37 +104,31 @@ function FlowPanel({ state, applicant }: { state: FlowState; applicant: Applican
 function SystemBubble() {
   return (
     <div style={{
-      padding: "12px 16px",
-      background: "var(--bg-secondary)",
-      border: "1px solid var(--border)",
-      borderRadius: 12,
-      fontSize: 13,
-      color: "var(--text-secondary)",
-      lineHeight: 1.55,
-      maxWidth: 460,
+      padding: "12px 16px", background: "var(--bg-secondary)",
+      border: "1px solid var(--border)", borderRadius: 12,
+      fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.55, maxWidth: 420,
     }}>
       <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>🤖 Claude</span>{" "}
-      has a credit-decision flowchart available as a tool. Send an applicant — Claude will call it and explain why.
+      has a credit-decision flowchart as a tool. Send an applicant — watch FootPrint execute on the right.
     </div>
   );
 }
 
 function UserBubble({ applicant }: { applicant: ApplicantData }) {
-  const dti = Math.round((applicant.monthlyDebts / applicant.monthlyIncome) * 100);
   return (
     <div style={{ display: "flex", justifyContent: "flex-end" }}>
       <div style={{
-        padding: "12px 16px",
-        background: "var(--accent)",
-        borderRadius: "12px 12px 2px 12px",
-        color: "white",
-        fontSize: 13,
-        maxWidth: 300,
+        padding: "12px 16px", background: "var(--accent)",
+        borderRadius: "12px 12px 2px 12px", color: "white", fontSize: 13, maxWidth: 280,
       }}>
-        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.75, marginBottom: 6, letterSpacing: "0.06em" }}>ASSESS APPLICATION</div>
+        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.7, marginBottom: 6, letterSpacing: "0.06em" }}>
+          ASSESS APPLICATION
+        </div>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>👤 {applicant.applicantName}</div>
-        <div style={{ opacity: 0.9 }}>Score: {applicant.creditScore} · DTI: {dti}%</div>
-        <div style={{ opacity: 0.9 }}>Income: ${applicant.monthlyIncome.toLocaleString()}/mo</div>
+        <div style={{ opacity: 0.9, fontSize: 12 }}>Score: {applicant.creditScore}</div>
+        <div style={{ opacity: 0.9, fontSize: 12 }}>
+          Income: ${applicant.monthlyIncome.toLocaleString()}/mo · Debts: ${applicant.monthlyDebts.toLocaleString()}/mo
+        </div>
       </div>
     </div>
   );
@@ -349,13 +153,11 @@ function FpDoneBubble({ decision, totalMs }: { decision: string; totalMs: number
   const di = decisionInfo(decision);
   return (
     <div style={{
-      display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "7px 12px",
-      background: di.bg, border: `1px solid ${di.border}`, borderRadius: 8,
-      fontSize: 12,
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "5px 10px", background: di.bg, border: `1px solid ${di.border}`, borderRadius: 7, fontSize: 12,
     }}>
       <span style={{ fontWeight: 700, color: di.color }}>🔧 FootPrint</span>
-      <span style={{ color: "var(--text-muted)" }}>evaluated in {totalMs}ms →</span>
+      <span style={{ color: "var(--text-muted)" }}>{totalMs}ms →</span>
       <span style={{ fontWeight: 700, color: di.color }}>{di.label}</span>
     </div>
   );
@@ -364,17 +166,13 @@ function FpDoneBubble({ decision, totalMs }: { decision: string; totalMs: number
 function AssistantBubble({ text }: { text: string }) {
   return (
     <div style={{
-      padding: "12px 16px",
-      background: "var(--bg-secondary)",
-      border: "1px solid var(--border)",
-      borderRadius: "12px 12px 12px 2px",
-      fontSize: 13,
-      color: "var(--text-primary)",
-      lineHeight: 1.6,
-      maxWidth: 460,
-      whiteSpace: "pre-wrap",
+      padding: "12px 16px", background: "var(--bg-secondary)",
+      border: "1px solid var(--border)", borderRadius: "12px 12px 12px 2px",
+      fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, maxWidth: 420, whiteSpace: "pre-wrap",
     }}>
-      <div style={{ fontWeight: 700, color: "var(--accent)", marginBottom: 8, fontSize: 11, letterSpacing: "0.05em" }}>🤖 CLAUDE</div>
+      <div style={{ fontWeight: 700, color: "var(--accent)", marginBottom: 8, fontSize: 11, letterSpacing: "0.05em" }}>
+        🤖 CLAUDE
+      </div>
       {text}
     </div>
   );
@@ -382,13 +180,60 @@ function AssistantBubble({ text }: { text: string }) {
 
 function ErrorBubble({ text }: { text: string }) {
   return (
-    <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, fontSize: 13, color: "#ef4444", maxWidth: 460 }}>
+    <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, fontSize: 13, color: "#ef4444", maxWidth: 420 }}>
       ⚠️ {text}
     </div>
   );
 }
 
-// ── Form fields ────────────────────────────────────────────────────────────
+// ── Right panel ────────────────────────────────────────────────────────────
+
+function IdlePanel() {
+  return (
+    <div style={{ padding: "32px 24px", color: "var(--text-muted)", fontSize: 13, lineHeight: 1.7 }}>
+      <div style={{ fontSize: 20, marginBottom: 12 }}>⚡</div>
+      <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+        FootPrint execution will appear here
+      </div>
+      <div>Send an applicant on the left. When Claude calls the flowchart tool, you'll see:</div>
+      <ul style={{ marginTop: 8, paddingLeft: 16 }}>
+        <li>The flowchart executing stage by stage</li>
+        <li>Time travel through each step</li>
+        <li>The causal trace — why the decision was made</li>
+        <li>Exactly what Claude received as the tool result</li>
+      </ul>
+    </div>
+  );
+}
+
+function ToolIOPanel({ toolInput, toolOutput }: { toolInput: Record<string, unknown>; toolOutput: { decision: string; trace: string[] } }) {
+  return (
+    <div style={{ padding: "16px", overflow: "auto", height: "100%", boxSizing: "border-box" }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+          📥 Tool Input — what Claude sent
+        </div>
+        <pre style={{ margin: 0, padding: "10px 12px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, lineHeight: 1.65, color: "var(--text-secondary)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          {JSON.stringify(toolInput, null, 2)}
+        </pre>
+      </div>
+
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+          📤 Tool Output — what FootPrint returned to Claude
+        </div>
+        <pre style={{ margin: 0, padding: "10px 12px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, lineHeight: 1.65, color: "var(--text-secondary)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          {JSON.stringify(toolOutput, null, 2)}
+        </pre>
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.6 }}>
+          ↑ This is why Claude can explain the decision precisely — FootPrint captured the full causal trace.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Form ───────────────────────────────────────────────────────────────────
 
 const FORM_FIELDS: Array<{ key: keyof ApplicantData; label: string; type: "text" | "number" }> = [
   { key: "applicantName", label: "Name", type: "text" },
@@ -416,15 +261,20 @@ export function ClaudeDemo() {
 
   const [messages, setMessages] = useState<ChatMsg[]>([{ id: "intro", kind: "system" }]);
   const [running, setRunning] = useState(false);
-  const [showCode, setShowCode] = useState(false);
-  const [flowState, setFlowState] = useState<FlowState>({ status: "idle" });
+  const [execState, setExecState] = useState<ExecState | null>(null);
+  const [rightTab, setRightTab] = useState<RightTab>("explainable");
 
-  const chart = useMemo(() => buildChart(), []);
+  const { chart, spec } = useMemo(() => buildChart(), []);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Switch to explainable tab when execution completes
+  useEffect(() => {
+    if (execState) setRightTab("explainable");
+  }, [execState]);
 
   async function send() {
     if (running || !apiKey.trim()) return;
@@ -462,11 +312,9 @@ export function ClaudeDemo() {
         throw new Error("Claude did not call the tool — try a different model.");
       }
 
-      // Update thinking to "FootPrint running" and trigger flow panel
       setMessages(prev => prev.map(m =>
-        m.id === thinkingId ? { id: thinkingId, kind: "thinking" as const, label: "FootPrint evaluating..." } : m
+        m.id === thinkingId ? { id: thinkingId, kind: "thinking" as const, label: "FootPrint running..." } : m
       ));
-      setFlowState({ status: "running" });
 
       // Run FootPrint
       const metricsRecorder = new MetricRecorder();
@@ -475,31 +323,36 @@ export function ClaudeDemo() {
       executor.attachRecorder(metricsRecorder);
       await executor.run({ input: toolUse.input as Record<string, unknown> });
 
-      const trace = executor.getNarrative();
       const snapshot = executor.getSnapshot();
+      const narrativeEntries = executor.getNarrativeEntries();
+      const runtimeStructure = executor.getRuntimeStructure?.() ?? null;
+      const trace = executor.getNarrative();
+
       const decision = String((snapshot.sharedState as Record<string, unknown>).decision ?? "");
-      const dtiVal = Number((snapshot.sharedState as Record<string, unknown>).dti ?? 0);
       const agg = metricsRecorder.getMetrics();
 
-      const stages: StageResult[] = [];
-      agg.stageMetrics.forEach(m => stages.push({ name: m.stageName, durationMs: Math.round(m.totalDuration) }));
+      const toolOutput = { decision, trace };
 
-      const execData: ExecutionData = { stages, trace, decision, dti: dtiVal, totalMs: Math.round(agg.totalDuration) };
+      setExecState({
+        snapshot,
+        spec,
+        narrativeEntries,
+        runtimeStructure,
+        toolInput: toolUse.input as Record<string, unknown>,
+        toolOutput,
+        decision,
+        totalMs: Math.round(agg.totalDuration),
+      });
 
-      // Flow panel → done
-      setFlowState({ status: "done", data: execData });
-
-      // Replace thinking with fp_done badge in chat
       setMessages(prev => prev.map(m =>
-        m.id === thinkingId ? { id: thinkingId, kind: "fp_done" as const, decision, totalMs: execData.totalMs } : m
+        m.id === thinkingId ? { id: thinkingId, kind: "fp_done" as const, decision, totalMs: Math.round(agg.totalDuration) } : m
       ));
 
-      // Thinking while Claude explains
       const thinkingId2 = uid();
       const assistantId = uid();
       setMessages(prev => [...prev, { id: thinkingId2, kind: "thinking", label: "Claude is explaining..." }]);
 
-      // Turn 2: feed trace back
+      // Turn 2: feed trace back to Claude
       const final = await client.messages.create({
         model,
         max_tokens: 600,
@@ -507,7 +360,7 @@ export function ClaudeDemo() {
         messages: [
           { role: "user", content: `Please assess this loan application:\n${JSON.stringify(snap, null, 2)}` },
           { role: "assistant", content: first.content },
-          { role: "user", content: [{ type: "tool_result", tool_use_id: toolUse.id, content: JSON.stringify({ decision, trace }) }] },
+          { role: "user", content: [{ type: "tool_result", tool_use_id: toolUse.id, content: JSON.stringify(toolOutput) }] },
         ],
       });
 
@@ -520,9 +373,8 @@ export function ClaudeDemo() {
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setFlowState({ status: "idle" });
       setMessages(prev =>
-        prev.filter(m => m.id !== thinkingId && m.kind !== "thinking")
+        prev.filter(m => m.kind !== "thinking")
           .concat({ id: uid(), kind: "error", text: msg })
       );
     } finally {
@@ -532,6 +384,12 @@ export function ClaudeDemo() {
 
   const modelShort = model.replace("claude-", "").replace(/-20\d{6}$/, "");
 
+  const RIGHT_TABS: Array<{ id: RightTab; label: string }> = [
+    { id: "explainable", label: "⚡ Execution" },
+    { id: "io", label: "📤 Tool I/O" },
+    { id: "code", label: "</> Code" },
+  ];
+
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
 
@@ -540,18 +398,15 @@ export function ClaudeDemo() {
         padding: isMobile ? "10px 14px" : "10px 24px",
         borderBottom: "1px solid var(--border)",
         background: "var(--bg-secondary)",
-        display: "flex", alignItems: "center", gap: isMobile ? 8 : 12,
-        flexShrink: 0,
+        display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, flexShrink: 0,
       }}>
         <Link to="/try-with-ai" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", flexShrink: 0 }}>
           ← Back
         </Link>
         <div style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap" }}>
-            Claude + FootPrint
-          </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 6px", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Claude + FootPrint</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 6px", fontFamily: "JetBrains Mono, monospace" }}>
             {modelShort}
           </span>
         </div>
@@ -560,27 +415,16 @@ export function ClaudeDemo() {
             ⚠️ Add key
           </Link>
         )}
-        <button
-          onClick={() => setShowCode(v => !v)}
-          style={{
-            padding: isMobile ? "5px 8px" : "5px 12px",
-            background: showCode ? "var(--phase-build-dim)" : "var(--bg-tertiary)",
-            border: `1px solid ${showCode ? "var(--accent)" : "var(--border)"}`,
-            borderRadius: 7,
-            color: showCode ? "var(--accent)" : "var(--text-muted)",
-            cursor: "pointer", fontSize: 12, fontWeight: 600, flexShrink: 0,
-          }}
-        >
-          {isMobile ? "</>" : "</> Code"}
-        </button>
       </header>
 
-      {/* Body: chat left + panel right */}
+      {/* Body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* Chat */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 12px" : "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* LEFT: Chat */}
+        <div style={{ width: isMobile ? "100%" : "38%", display: "flex", flexDirection: "column", overflow: "hidden", borderRight: isMobile ? "none" : "1px solid var(--border)", flexShrink: 0 }}>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 12px" : "20px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <AnimatePresence initial={false}>
               {messages.map(msg => (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
@@ -597,7 +441,7 @@ export function ClaudeDemo() {
           </div>
 
           {/* Input */}
-          <div style={{ borderTop: "1px solid var(--border)", padding: isMobile ? "12px" : "14px 24px", background: "var(--bg-secondary)", flexShrink: 0 }}>
+          <div style={{ borderTop: "1px solid var(--border)", padding: isMobile ? "12px" : "14px 20px", background: "var(--bg-secondary)", flexShrink: 0 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
               {FORM_FIELDS.map(field => (
                 <div key={field.key}>
@@ -625,66 +469,67 @@ export function ClaudeDemo() {
                 fontSize: 14, fontWeight: 700, cursor: apiKey.trim() && !running ? "pointer" : "default",
               }}
             >
-              {running ? "Running..." : !apiKey.trim() ? "← Add API key to continue" : "Send to Claude →"}
+              {running ? "Running..." : !apiKey.trim() ? "← Add API key" : "Send to Claude →"}
             </button>
           </div>
         </div>
 
-        {/* Right panel: FlowPanel or Code (desktop only unless toggled) */}
-        {(!isMobile || showCode) && (
-          <div style={{
-            width: isMobile ? "100%" : "38%",
-            borderLeft: "1px solid var(--border)",
-            background: "var(--bg-secondary)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            flexShrink: 0,
-            ...(isMobile ? { position: "absolute" as const, inset: "49px 0 0 0", zIndex: 10 } : {}),
-          }}>
-            {/* Panel tab */}
-            <div style={{
-              display: "flex",
-              borderBottom: "1px solid var(--border)",
-              flexShrink: 0,
-            }}>
-              {[
-                { id: "flow", label: "⚡ Execution" },
-                { id: "code", label: "</> Code" },
-              ].map(tab => (
+        {/* RIGHT: FootPrint visualization */}
+        {!isMobile && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)", flexShrink: 0 }}>
+              {RIGHT_TABS.map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setShowCode(tab.id === "code")}
+                  onClick={() => setRightTab(tab.id)}
                   style={{
-                    flex: 1,
-                    padding: "8px 0",
-                    background: (tab.id === "code") === showCode ? "var(--phase-build-dim)" : "transparent",
+                    padding: "8px 16px",
+                    background: rightTab === tab.id ? "var(--bg-primary)" : "transparent",
                     border: "none",
-                    borderBottom: `2px solid ${(tab.id === "code") === showCode ? "var(--accent)" : "transparent"}`,
-                    color: (tab.id === "code") === showCode ? "var(--accent)" : "var(--text-muted)",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
+                    borderBottom: `2px solid ${rightTab === tab.id ? "var(--accent)" : "transparent"}`,
+                    color: rightTab === tab.id ? "var(--accent)" : "var(--text-muted)",
+                    cursor: "pointer", fontSize: 12, fontWeight: 600,
+                    transition: "all 0.15s",
                   }}
                 >
                   {tab.label}
                 </button>
               ))}
-              {isMobile && (
-                <button onClick={() => setShowCode(false)} style={{ padding: "8px 12px", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14 }}>
-                  ✕
-                </button>
-              )}
             </div>
 
-            {/* Panel content */}
-            <div style={{ flex: 1, overflow: "auto" }}>
-              {showCode ? (
-                <pre style={{ margin: 0, padding: "14px 16px", fontSize: 11, lineHeight: 1.65, color: "var(--text-secondary)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+            {/* Content */}
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              {rightTab === "explainable" && (
+                execState ? (
+                  <ExplainableShell
+                    runtimeSnapshot={execState.snapshot as any}
+                    spec={(execState.runtimeStructure ?? execState.spec) as any}
+                    title="Credit Decision"
+                    logs={[]}
+                    narrativeEntries={execState.narrativeEntries as any}
+                    tabs={["explainable", "result", "ai-compatible"]}
+                    defaultTab="explainable"
+                    defaultExpanded={{ details: true }}
+                  />
+                ) : (
+                  <IdlePanel />
+                )
+              )}
+
+              {rightTab === "io" && (
+                execState ? (
+                  <ToolIOPanel toolInput={execState.toolInput} toolOutput={execState.toolOutput} />
+                ) : (
+                  <IdlePanel />
+                )
+              )}
+
+              {rightTab === "code" && (
+                <pre style={{ margin: 0, padding: "16px", fontSize: 11, lineHeight: 1.65, color: "var(--text-secondary)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", height: "100%", boxSizing: "border-box", overflow: "auto" }}>
                   {llmCode}
                 </pre>
-              ) : (
-                <FlowPanel state={flowState} applicant={applicant} />
               )}
             </div>
           </div>
