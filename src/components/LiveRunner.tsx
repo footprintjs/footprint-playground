@@ -672,6 +672,24 @@ function Toolbar({
         </Link>
       )}
 
+      {!isMobile && resolvedSample?.guideLink && (
+        <a
+          href={resolvedSample.guideLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12,
+            color: "var(--accent)",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          ← Guide
+        </a>
+      )}
+
       {!isMobile && (
         <a
           href="https://footprintjs.github.io/footPrint/"

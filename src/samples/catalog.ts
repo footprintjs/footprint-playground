@@ -47,6 +47,8 @@ import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 // AI Agent Tools
 import llmAgentToolCode from "../tutorials/llm-agent-tool.ts?raw";
 
+const DOCS = 'https://footprintjs.github.io/footPrint';
+
 export interface Sample {
   id: string;
   name: string;
@@ -55,6 +57,8 @@ export interface Sample {
   code: string;
   /** Default JSON for the INPUT variable panel (like GraphiQL variables). */
   defaultInput?: string;
+  /** Link to the relevant guide page in the docs site. */
+  guideLink?: string;
 }
 
 export const samples: Sample[] = [
@@ -66,6 +70,7 @@ export const samples: Sample[] = [
     description:
       "Full loan underwriting pipeline with credit check, DTI, employment verification, and conditional branching.",
     code: loanCode,
+    guideLink: `${DOCS}/getting-started/quick-start/`,
     defaultInput: JSON.stringify(
       {
         app: {
@@ -90,6 +95,7 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "The simplest flow — stages execute one after another: FetchUser → EnrichProfile → SendWelcomeEmail.",
     code: linearCode,
+    guideLink: `${DOCS}/guides/building/`,
     defaultInput: JSON.stringify(
       { userId: 42 },
       null,
@@ -103,6 +109,7 @@ export const samples: Sample[] = [
     description:
       "Fork runs inventory check and fraud check in parallel, then finalizes the order.",
     code: forkCode,
+    guideLink: `${DOCS}/guides/building/`,
   },
   {
     id: "decider",
@@ -111,6 +118,7 @@ export const samples: Sample[] = [
     description:
       "Classify a customer's tier and route to loyalty discount, upgrade prompt, or onboarding.",
     code: deciderCode,
+    guideLink: `${DOCS}/guides/decision-branching/`,
   },
   {
     id: "selector",
@@ -118,6 +126,7 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Triage a patient's vitals and run matching screening branches in parallel.",
     code: selectorCode,
+    guideLink: `${DOCS}/guides/decision-branching/`,
   },
   {
     id: "subflow",
@@ -125,6 +134,7 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Nest a payment processing flowchart inside an order pipeline as a reusable subflow.",
     code: subflowCode,
+    guideLink: `${DOCS}/guides/subflows/`,
   },
   {
     id: "loops",
@@ -132,6 +142,7 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Retry an unstable API with exponential backoff using loopTo and breakFn.",
     code: loopsCode,
+    guideLink: `${DOCS}/guides/building/`,
   },
   {
     id: "structural-subflow",
@@ -139,6 +150,7 @@ export const samples: Sample[] = [
     category: "Flowchart",
     description: "Attach a pre-executed subflow's structure to the parent for visualization — without re-running it.",
     code: structuralSubflowCode,
+    guideLink: `${DOCS}/guides/subflows/`,
   },
   {
     id: "lazy-subflow",
@@ -147,6 +159,7 @@ export const samples: Sample[] = [
     description:
       "Graph-of-services pattern — 3 lazy service branches, only selected ones resolve and execute.",
     code: lazySubflowCode,
+    guideLink: `${DOCS}/guides/subflows/`,
     defaultInput: JSON.stringify(
       { requiredServices: ["auth", "payment"] },
       null,
@@ -162,6 +175,7 @@ export const samples: Sample[] = [
     description:
       "Storing and reading values in scope — primitives, objects, and nested data.",
     code: valuesCode,
+    guideLink: `${DOCS}/getting-started/key-concepts/`,
   },
   {
     id: "narrative",
@@ -170,6 +184,7 @@ export const samples: Sample[] = [
     description:
       "Every read/write is observed automatically -- full causal trace with zero manual work.",
     code: narrativeCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "recorders",
@@ -178,6 +193,7 @@ export const samples: Sample[] = [
     description:
       "Recorders observe scope operations (read, write, commit, errors) for audit logs and telemetry.",
     code: recordersCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "typed-scope",
@@ -186,6 +202,7 @@ export const samples: Sample[] = [
     description:
       "Define your scope schema with Zod for type-safe getters with runtime validation.",
     code: typedScopeCode,
+    guideLink: `${DOCS}/getting-started/key-concepts/`,
   },
   {
     id: "metrics",
@@ -194,6 +211,7 @@ export const samples: Sample[] = [
     description:
       "MetricRecorder tracks per-stage read/write counts and duration automatically.",
     code: metricsCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "streaming",
@@ -202,6 +220,7 @@ export const samples: Sample[] = [
     description:
       "Streaming stages emit tokens incrementally via StreamCallback — onStart, onToken, onEnd lifecycle.",
     code: streamingCode,
+    guideLink: `${DOCS}/guides/building/`,
   },
   {
     id: "error-handling",
@@ -210,6 +229,7 @@ export const samples: Sample[] = [
     description:
       "How to handle errors in pipelines with try/catch and DebugRecorder diagnostics.",
     code: errorHandlingCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "debug-mermaid",
@@ -218,6 +238,7 @@ export const samples: Sample[] = [
     description:
       "DebugRecorder captures every read/write/error; toMermaid() generates flowchart diagrams.",
     code: debugMermaidCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "break-fn",
@@ -226,6 +247,7 @@ export const samples: Sample[] = [
     description:
       "Call breakFn() to stop the pipeline early — current stage commits, no further stages run.",
     code: breakFnCode,
+    guideLink: `${DOCS}/guides/building/`,
   },
   {
     id: "contract-openapi",
@@ -234,6 +256,7 @@ export const samples: Sample[] = [
     description:
       "Define I/O contracts on flowcharts and generate OpenAPI 3.1 specs from Zod or JSON Schema.",
     code: contractCode,
+    guideLink: `${DOCS}/guides/self-describing/`,
   },
   {
     id: "flow-recorders",
@@ -242,6 +265,7 @@ export const samples: Sample[] = [
     description:
       "FlowRecorder observes engine-level events — decisions, loops, forks, and control flow.",
     code: flowRecordersCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "redaction",
@@ -250,6 +274,7 @@ export const samples: Sample[] = [
     description:
       "Protect sensitive data (passwords, API keys) from leaking into narratives and debug logs.",
     code: redactionCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "optional-scope-factory",
@@ -258,6 +283,7 @@ export const samples: Sample[] = [
     description:
       "Three ways to use TypedScope: flowChart<T>() shorthand, FlowChartBuilder, and $-method escape hatches.",
     code: optionalScopeCode,
+    guideLink: `${DOCS}/getting-started/key-concepts/`,
   },
   {
     id: "decide-select",
@@ -266,6 +292,7 @@ export const samples: Sample[] = [
     description:
       "Auto-capture WHY a decider chose a branch — filter-style rules produce rich narrative: 'creditScore 750 gt 700 → approved'.",
     code: decideSelectCode,
+    guideLink: `${DOCS}/guides/decision-branching/`,
   },
   {
     id: "subflow-redaction",
@@ -274,6 +301,7 @@ export const samples: Sample[] = [
     description:
       "PII marked redacted in a subflow stage carries through outputMapper to the parent — narrative shows [REDACTED] throughout.",
     code: subflowRedactionCode,
+    guideLink: `${DOCS}/guides/subflows/`,
   },
 
   // ── Flow Recorder Strategies ─────────────────────────────────────────────
@@ -284,6 +312,7 @@ export const samples: Sample[] = [
     description:
       "The simplest FlowRecorder — an object with id and hooks to observe control flow events.",
     code: simpleObserverCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "strategy-comparison",
@@ -292,6 +321,7 @@ export const samples: Sample[] = [
     description:
       "Runs the same flowchart with every built-in narrative strategy side by side.",
     code: strategyComparisonCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "custom-recorder",
@@ -300,6 +330,7 @@ export const samples: Sample[] = [
     description:
       "Three patterns for custom FlowRecorders — object literal, class, and factory function.",
     code: customRecorderCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "multiple-recorders",
@@ -308,6 +339,7 @@ export const samples: Sample[] = [
     description:
       "Attach multiple FlowRecorders to the same execution — each sees events independently.",
     code: multipleRecordersCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
   {
     id: "recorder-edge-cases",
@@ -316,6 +348,7 @@ export const samples: Sample[] = [
     description:
       "FlowRecorder behavior at boundaries — zero loops, single iterations, and recorder errors.",
     code: edgeCasesCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
 
   // ── Input & Validation ───────────────────────────────────────────────────
@@ -344,6 +377,7 @@ export const samples: Sample[] = [
     description:
       "FootPrint complements an existing state machine — each state handler runs a traced flowchart.",
     code: stateMachineCode,
+    guideLink: `${DOCS}/guides/subflows/`,
   },
 
   // ── AI Agent Tools ────────────────────────────────────────────────────────
@@ -354,6 +388,7 @@ export const samples: Sample[] = [
     description:
       "Expose a flowchart as an MCP tool. Claude calls it and explains the decision using the automatic causal trace.",
     code: llmAgentToolCode,
+    guideLink: `${DOCS}/guides/self-describing/`,
     defaultInput: JSON.stringify(
       {
         apiKey: "",
