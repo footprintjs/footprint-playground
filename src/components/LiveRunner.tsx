@@ -516,8 +516,7 @@ export function LiveRunner() {
                   title={resolvedSample?.name ?? "Pipeline"}
                   logs={result.logs}
                   narrativeEntries={result.narrativeEntries as any}
-                  tabs={["result", "explainable", "ai-compatible"]}
-                  defaultTab="explainable"
+                  defaultTab="narrative"
                   defaultExpanded={{ details: true }}
                 />
               </div>
