@@ -130,6 +130,7 @@ export function LiveRunner() {
       <Toolbar
         selectedId={selectedId}
         description={selectedSample?.description}
+        guideLink={selectedSample?.guideLink}
         theme={theme}
         isMobile={isMobile}
         onSampleChange={handleSampleChange}
@@ -567,6 +568,7 @@ export function LiveRunner() {
 function Toolbar({
   selectedId,
   description,
+  guideLink,
   theme,
   isMobile,
   onSampleChange,
@@ -574,6 +576,7 @@ function Toolbar({
 }: {
   selectedId: string;
   description?: string;
+  guideLink?: string;
   theme: string;
   isMobile: boolean;
   onSampleChange: (id: string) => void;
@@ -672,9 +675,9 @@ function Toolbar({
         </Link>
       )}
 
-      {!isMobile && resolvedSample?.guideLink && (
+      {!isMobile && guideLink && (
         <a
-          href={resolvedSample.guideLink}
+          href={guideLink}
           target="_blank"
           rel="noopener noreferrer"
           style={{
