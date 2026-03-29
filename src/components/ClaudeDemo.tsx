@@ -278,8 +278,7 @@ function SlideHowBuilt({ execState }: { execState: ExecState | null }) {
       title="Credit Decision"
       logs={[]}
       narrativeEntries={execState.narrativeEntries as any}
-      tabs={["explainable", "result", "ai-compatible"]}
-      defaultTab="explainable"
+      defaultTab="narrative"
       defaultExpanded={{ details: true }}
     />
   );
