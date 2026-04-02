@@ -46,6 +46,8 @@ import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 
 // AI Agent Tools
 import llmAgentToolCode from "../tutorials/llm-agent-tool.ts?raw";
+import agentMemoryCode from "../tutorials/agent-memory.ts?raw";
+import agentReactLoopCode from "./examples/quick-start/agent-react-loop.ts?raw";
 
 const DOCS = 'https://footprintjs.github.io/footPrint';
 
@@ -381,6 +383,22 @@ export const samples: Sample[] = [
   },
 
   // ── AI Agent Tools ────────────────────────────────────────────────────────
+  {
+    id: "agent-memory",
+    name: "Agent Memory (Multi-Turn)",
+    category: "AI Agent Tools",
+    description:
+      "Multi-turn conversation with persistent memory. PrepareMemory loads history before each LLM call; CommitMemory saves after — both narrative-visible.",
+    code: agentMemoryCode,
+  },
+  {
+    id: "agent-react-loop",
+    name: "Agent ReAct Loop",
+    category: "AI Agent Tools",
+    description:
+      "Agent loop with RouteResponse decider pattern — routes between tool execution and finalization. Shows 2 tool calls then final answer with no message duplication.",
+    code: agentReactLoopCode,
+  },
   {
     id: "llm-agent-tool",
     name: "Claude Agent + FootPrint Tool",

@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.54.0",
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
+    "agentfootprint": "file:../agentfootprint",
     "footprint-explainable-ui": "^0.12.0",
     "footprintjs": "file:../footPrint",
     "framer-motion": "^12.35.1",
