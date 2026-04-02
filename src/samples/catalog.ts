@@ -28,6 +28,7 @@ import redactionCode from "./examples/features/12-redaction.ts?raw";
 import optionalScopeCode from "./examples/features/13-typed-scope-patterns.ts?raw";
 import decideSelectCode from "./examples/features/16-decide-select.ts?raw";
 import subflowRedactionCode from "./examples/features/17-subflow-redaction.ts?raw";
+import compositeRecorderCode from "./examples/features/18-composite-recorder.ts?raw";
 import structuralSubflowCode from "./examples/flowchart/07-structural-subflow.ts?raw";
 
 // Flow Recorders
@@ -304,6 +305,15 @@ export const samples: Sample[] = [
       "PII marked redacted in a subflow stage carries through outputMapper to the parent — narrative shows [REDACTED] throughout.",
     code: subflowRedactionCode,
     guideLink: `${DOCS}/guides/subflows/`,
+  },
+  {
+    id: "composite-recorder",
+    name: "Composite Recorder",
+    category: "Features",
+    description:
+      "Bundle SLA monitoring, compliance audit, and metrics into one paymentObservability() preset — one call, three concerns covered.",
+    code: compositeRecorderCode,
+    guideLink: `${DOCS}/guides/recording/`,
   },
 
   // ── Flow Recorder Strategies ─────────────────────────────────────────────
