@@ -51,6 +51,12 @@ export interface ExecutionResult {
   /** Runtime structure (spec + resolved dynamic subflows). Used for drill-down. */
   runtimeStructure?: Record<string, unknown>;
   error?: string;
+  /** When true, execution paused at a PausableHandler stage. Call resumeExecution() to continue. */
+  paused?: boolean;
+  /** Pause data from the pausable stage (question, metadata). */
+  pauseData?: unknown;
+  /** ID of the paused stage. */
+  pausedStageId?: string;
 }
 
 export async function executeCode(code: string, inputJson?: string): Promise<ExecutionResult> {
@@ -120,7 +126,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   // Strip import statements (footprint, agentfootprint, zod, @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
-    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:\/advanced)?|agentfootprint|zod)['"];?\s*\n?/g,
+    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/advanced)?|agentfootprint|zod)['"];?\s*\n?/g,
     ""
   );
   // Strip default import from @anthropic-ai/sdk (e.g. `import Anthropic from '@anthropic-ai/sdk';`)
@@ -259,6 +265,29 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
       // Optional
     }
 
+    // Detect pause state
+    const isPaused = typeof (capturedExecutor as any).isPaused === 'function'
+      && (capturedExecutor as any).isPaused();
+
+    if (isPaused) {
+      const checkpoint = (capturedExecutor as any).getCheckpoint();
+      // Store executor for resumeExecution()
+      _pausedExecutor = capturedExecutor;
+      _pausedBuildTime = capturedBuildTime;
+      return {
+        snapshot,
+        logs,
+        narrative,
+        narrativeEntries,
+        buildTime: capturedBuildTime,
+        runtimeStructure,
+        paused: true,
+        pauseData: checkpoint?.pauseData,
+        pausedStageId: checkpoint?.pausedStageId,
+      };
+    }
+
+    _pausedExecutor = null;
     return { snapshot, logs, narrative, narrativeEntries, buildTime: capturedBuildTime, runtimeStructure };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -269,5 +298,79 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
       buildTime: capturedBuildTime,
       error: `Snapshot failed: ${msg}`,
     };
+  }
+}
+
+// ── Pause/Resume support ──────────────────────────────────────────────────
+
+let _pausedExecutor: InstanceType<typeof footprint.FlowChartExecutor> | null = null;
+let _pausedBuildTime: BuildTimeInfo | null = null;
+
+/** Returns true if there is a paused executor waiting for resume. */
+export function hasPausedExecution(): boolean {
+  return _pausedExecutor !== null;
+}
+
+/** Resume a paused execution with the given input. */
+export async function resumeExecution(resumeInput?: unknown): Promise<ExecutionResult> {
+  const executor = _pausedExecutor;
+  const buildTime = _pausedBuildTime;
+  if (!executor) {
+    return { snapshot: null, logs: [], narrative: [], buildTime: null, error: 'No paused execution to resume.' };
+  }
+
+  const checkpoint = (executor as any).getCheckpoint();
+  if (!checkpoint) {
+    _pausedExecutor = null;
+    return { snapshot: null, logs: [], narrative: [], buildTime: null, error: 'No checkpoint available.' };
+  }
+
+  const logs: string[] = [];
+  const narrative: string[] = [];
+
+  try {
+    await (executor as any).resume(checkpoint, resumeInput);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    _pausedExecutor = null;
+    return { snapshot: null, logs, narrative, buildTime, error: `Resume failed: ${msg}` };
+  }
+
+  try {
+    // The executor reuses its runtime — snapshot includes the full execution tree
+    // (pre-pause stages + resume + continuation) in one continuous tree.
+    const snapshot = (executor as any).getSnapshot();
+
+    try {
+      const lines: string[] = (executor as any).getNarrative?.() ?? [];
+      if (lines.length > 0) narrative.push(...lines);
+    } catch { /* optional */ }
+
+    let narrativeEntries: ExecutionResult['narrativeEntries'];
+    try {
+      narrativeEntries = (executor as any).getNarrativeEntries?.() ?? undefined;
+    } catch { /* optional */ }
+
+    let runtimeStructure: ExecutionResult['runtimeStructure'];
+    try {
+      runtimeStructure = (executor as any).getRuntimeStructure?.() ?? undefined;
+    } catch { /* optional */ }
+
+    // Check if it paused again (multi-pause)
+    const isPaused = typeof (executor as any).isPaused === 'function' && (executor as any).isPaused();
+    if (isPaused) {
+      const cp = (executor as any).getCheckpoint();
+      return {
+        snapshot, logs, narrative, narrativeEntries, buildTime, runtimeStructure,
+        paused: true, pauseData: cp?.pauseData, pausedStageId: cp?.pausedStageId,
+      };
+    }
+
+    _pausedExecutor = null;
+    return { snapshot, logs, narrative, narrativeEntries, buildTime, runtimeStructure };
+  } catch (e: unknown) {
+    _pausedExecutor = null;
+    const msg = e instanceof Error ? e.message : String(e);
+    return { snapshot: null, logs, narrative, buildTime, error: `Snapshot failed: ${msg}` };
   }
 }

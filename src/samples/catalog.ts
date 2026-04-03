@@ -29,6 +29,7 @@ import optionalScopeCode from "./examples/features/13-typed-scope-patterns.ts?ra
 import decideSelectCode from "./examples/features/16-decide-select.ts?raw";
 import subflowRedactionCode from "./examples/features/17-subflow-redaction.ts?raw";
 import compositeRecorderCode from "./examples/features/18-composite-recorder.ts?raw";
+import pauseResumeCode from "./examples/features/19-pause-resume.ts?raw";
 import structuralSubflowCode from "./examples/flowchart/07-structural-subflow.ts?raw";
 
 // Flow Recorders
@@ -314,6 +315,14 @@ export const samples: Sample[] = [
       "Bundle SLA monitoring, compliance audit, and metrics into one paymentObservability() preset — one call, three concerns covered.",
     code: compositeRecorderCode,
     guideLink: `${DOCS}/guides/recording/`,
+  },
+  {
+    id: "pause-resume",
+    name: "Pause / Resume",
+    category: "Features",
+    description:
+      "Human-in-the-loop approval gate: pipeline pauses for manager review, creates a JSON-safe checkpoint, then resumes with the decision.",
+    code: pauseResumeCode,
   },
 
   // ── Flow Recorder Strategies ─────────────────────────────────────────────

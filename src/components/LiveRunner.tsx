@@ -12,6 +12,7 @@ import { useTheme } from "../ThemeContext";
 import { samples } from "../samples/catalog";
 import {
   executeCode,
+  resumeExecution,
   type ExecutionResult,
 } from "../runner/executeCode";
 import {
@@ -104,6 +105,24 @@ export function LiveRunner() {
       setRunning(false);
     }
   }, [code, inputJson, isMobile]);
+
+  const handleResume = useCallback(async (resumeInput?: unknown) => {
+    setRunning(true);
+    try {
+      const res = await resumeExecution(resumeInput);
+      setResult(res);
+    } catch (e: unknown) {
+      setResult({
+        snapshot: null,
+        logs: [],
+        narrative: [],
+        buildTime: null,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, []);
 
   // Prefer runtime structure (has resolved lazy subflows for drill-down) over build-time spec
   const buildTimeSpec = (result?.runtimeStructure as unknown as SpecNode)
@@ -510,6 +529,14 @@ export function LiveRunner() {
                 </div>
               )}
 
+              {result.paused && (
+                <PausePanel
+                  pauseData={result.pauseData}
+                  pausedStageId={result.pausedStageId}
+                  onResume={handleResume}
+                />
+              )}
+
               <div style={{ flex: 1, overflow: "hidden" }}>
                 <ExplainableShell
                   runtimeSnapshot={result.snapshot as any}
@@ -564,6 +591,145 @@ export function LiveRunner() {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function PausePanel({
+  pauseData,
+  pausedStageId,
+  onResume,
+}: {
+  pauseData?: unknown;
+  pausedStageId?: string;
+  onResume: (input?: unknown) => void;
+}) {
+  const [resumeJson, setResumeJson] = useState('{\n  "approved": true,\n  "approver": "Manager"\n}');
+  const [error, setError] = useState('');
+
+  const handleResume = () => {
+    setError('');
+    let parsed: unknown;
+    if (resumeJson.trim()) {
+      try {
+        parsed = JSON.parse(resumeJson);
+      } catch (e: unknown) {
+        setError('Invalid JSON: ' + (e instanceof Error ? e.message : String(e)));
+        return;
+      }
+    }
+    onResume(parsed);
+  };
+
+  // Extract display fields from pauseData
+  const dataObj = pauseData && typeof pauseData === 'object' ? pauseData as Record<string, unknown> : null;
+  const question = dataObj?.question as string | undefined;
+
+  return (
+    <div
+      style={{
+        padding: '16px 20px',
+        background: 'rgba(251, 191, 36, 0.08)',
+        borderBottom: '2px solid rgba(251, 191, 36, 0.4)',
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 18 }}>&#9208;</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+          Pipeline Paused
+        </span>
+        {pausedStageId && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+            at {pausedStageId}
+          </span>
+        )}
+      </div>
+
+      {question && (
+        <div style={{
+          fontSize: 14,
+          color: 'var(--text-primary)',
+          marginBottom: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-secondary)',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+        }}>
+          {question}
+        </div>
+      )}
+
+      {dataObj && !question && (
+        <pre style={{
+          fontSize: 11,
+          color: 'var(--text-secondary)',
+          marginBottom: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-secondary)',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          overflow: 'auto',
+          maxHeight: 100,
+        }}>
+          {JSON.stringify(pauseData, null, 2)}
+        </pre>
+      )}
+
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+        Resume Input (JSON):
+      </div>
+      <textarea
+        value={resumeJson}
+        onChange={(e) => setResumeJson(e.target.value)}
+        style={{
+          width: '100%',
+          height: 60,
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 12,
+          padding: '8px 10px',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)',
+          resize: 'vertical',
+          boxSizing: 'border-box',
+        }}
+      />
+      {error && (
+        <div style={{ fontSize: 12, color: 'var(--error)', marginTop: 4 }}>{error}</div>
+      )}
+      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+        <button
+          onClick={handleResume}
+          style={{
+            background: 'var(--accent)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            padding: '8px 20px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Resume
+        </button>
+        <button
+          onClick={() => onResume(undefined)}
+          style={{
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            padding: '8px 16px',
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          Resume (no input)
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Toolbar({
   selectedId,
