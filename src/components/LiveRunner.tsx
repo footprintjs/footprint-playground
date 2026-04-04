@@ -58,6 +58,7 @@ export function LiveRunner() {
   const [code, setCode] = useState(resolvedSample.code);
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [resumedFrom, setResumedFrom] = useState<{ question?: string; input?: unknown } | null>(null);
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
   // Right panel tabs managed by ExplainableShell internally
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -88,6 +89,7 @@ export function LiveRunner() {
   const handleRun = useCallback(async () => {
     setRunning(true);
     setResult(null);
+    setResumedFrom(null);
     if (isMobile) setMobilePanel("output");
     try {
       const res = await executeCode(code, inputJson || undefined);
@@ -108,6 +110,11 @@ export function LiveRunner() {
 
   const handleResume = useCallback(async (resumeInput?: unknown) => {
     setRunning(true);
+    // Capture what we're resuming from
+    const pauseQuestion = result?.pauseData && typeof result.pauseData === 'object'
+      ? (result.pauseData as Record<string, unknown>).question as string | undefined
+      : undefined;
+    setResumedFrom({ question: pauseQuestion, input: resumeInput });
     try {
       const res = await resumeExecution(resumeInput);
       setResult(res);
@@ -122,7 +129,7 @@ export function LiveRunner() {
     } finally {
       setRunning(false);
     }
-  }, []);
+  }, [result]);
 
   // Prefer runtime structure (has resolved lazy subflows for drill-down) over build-time spec
   const buildTimeSpec = (result?.runtimeStructure as unknown as SpecNode)
@@ -535,6 +542,31 @@ export function LiveRunner() {
                   pausedStageId={result.pausedStageId}
                   onResume={handleResume}
                 />
+              )}
+
+              {!result.paused && resumedFrom && (
+                <div style={{
+                  padding: '10px 16px',
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  borderBottom: '2px solid rgba(34, 197, 94, 0.3)',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                }}>
+                  <span style={{ color: '#22c55e', fontWeight: 700 }}>&#10003; Resumed</span>
+                  {resumedFrom.question && (
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      — {resumedFrom.question}
+                    </span>
+                  )}
+                  {resumedFrom.input !== undefined && (
+                    <span style={{ color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+                      Input: {JSON.stringify(resumedFrom.input).slice(0, 80)}
+                    </span>
+                  )}
+                </div>
               )}
 
               <div style={{ flex: 1, overflow: "hidden" }}>
