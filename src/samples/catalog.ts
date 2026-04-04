@@ -50,6 +50,7 @@ import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 import llmAgentToolCode from "../tutorials/llm-agent-tool.ts?raw";
 import agentMemoryCode from "../tutorials/agent-memory.ts?raw";
 import agentReactLoopCode from "./examples/quick-start/agent-react-loop.ts?raw";
+import parallelAgentsCode from "./examples/quick-start/parallel-agents.ts?raw";
 
 const DOCS = 'https://footprintjs.github.io/footPrint';
 
@@ -417,6 +418,14 @@ export const samples: Sample[] = [
     description:
       "Agent loop with RouteResponse decider pattern — routes between tool execution and finalization. Shows 2 tool calls then final answer with no message duplication.",
     code: agentReactLoopCode,
+  },
+  {
+    id: "parallel-agents",
+    name: "Parallel Agents",
+    category: "AI Agent Tools",
+    description:
+      "Run research + writing agents in parallel (fan-out), then merge results with an LLM call (fan-in). Each branch runs in isolated scope.",
+    code: parallelAgentsCode,
   },
   {
     id: "llm-agent-tool",
