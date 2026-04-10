@@ -14,7 +14,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
     "agentfootprint": "file:../agentfootprint",
-    "footprint-explainable-ui": "^0.14.7",
+    "footprint-explainable-ui": "^0.14.10",
     "footprintjs": "file:../footPrint",
     "framer-motion": "^12.35.1",
     "react": "^19.2.0",
