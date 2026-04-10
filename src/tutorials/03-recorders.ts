@@ -17,7 +17,7 @@ import {
   type ReadEvent,
   type WriteEvent,
   type CommitEvent,
-} from 'footprint';
+} from 'footprintjs';
 
 // ── Custom audit recorder ───────────────────────────────────────────────
 

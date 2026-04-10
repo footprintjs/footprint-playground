@@ -30,6 +30,7 @@ import decideSelectCode from "./examples/features/16-decide-select.ts?raw";
 import subflowRedactionCode from "./examples/features/17-subflow-redaction.ts?raw";
 import compositeRecorderCode from "./examples/features/18-composite-recorder.ts?raw";
 import pauseResumeCode from "./examples/features/19-pause-resume.ts?raw";
+import recorderOperationsCode from "./examples/features/21-recorder-operations.ts?raw";
 import structuralSubflowCode from "./examples/flowchart/07-structural-subflow.ts?raw";
 
 // Flow Recorders
@@ -315,6 +316,15 @@ export const samples: Sample[] = [
     description:
       "Bundle SLA monitoring, compliance audit, and metrics into one paymentObservability() preset — one call, three concerns covered.",
     code: compositeRecorderCode,
+    guideLink: `${DOCS}/guides/recording/`,
+  },
+  {
+    id: "recorder-operations",
+    name: "Recorder Operations",
+    category: "Features",
+    description:
+      "Three operations on auto-collected data: Translate (per-step), Accumulate (progressive slider), Aggregate (grand total). Custom CostRecorder extends KeyedRecorder.",
+    code: recorderOperationsCode,
     guideLink: `${DOCS}/guides/recording/`,
   },
   {

@@ -13,7 +13,7 @@ import {
   
   FlowChartExecutor,
   type StreamHandlers,
-} from 'footprint';
+} from 'footprintjs';
 
 interface SummaryState {
   patientName: string;

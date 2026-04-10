@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { flowChart, FlowChartExecutor, decide, MetricRecorder } from "footprintjs";
 import { ExplainableShell } from "footprint-explainable-ui";
+import type { NarrativeEntry } from "footprint-explainable-ui";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -277,7 +278,7 @@ function SlideHowBuilt({ execState }: { execState: ExecState | null }) {
       spec={(execState.runtimeStructure ?? execState.spec) as any}
       title="Credit Decision"
       logs={[]}
-      narrativeEntries={execState.narrativeEntries as any}
+      narrativeEntries={execState.narrativeEntries as NarrativeEntry[]}
       defaultTab="narrative"
       defaultExpanded={{ details: true }}
     />

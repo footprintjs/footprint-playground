@@ -24,7 +24,7 @@
  *   claude-opus-4-5             — most capable
  */
 
-import { flowChart, FlowChartExecutor, decide, MetricRecorder, DebugRecorder } from 'footprint';
+import { flowChart, FlowChartExecutor, decide, MetricRecorder, DebugRecorder } from 'footprintjs';
 import { z } from 'zod';
 
 (async () => {

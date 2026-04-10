@@ -1,5 +1,7 @@
 import * as footprint from "footprintjs";
+import * as footprintTrace from "footprintjs/trace";
 import * as agentfootprint from "agentfootprint";
+import type { NarrativeEntry } from "footprint-explainable-ui";
 import { transform } from "sucrase";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
@@ -44,8 +46,8 @@ export interface ExecutionResult {
   logs: string[];
   /** Narrative lines from CombinedNarrativeBuilder (separate from console logs) */
   narrative: string[];
-  /** Structured narrative entries with type/depth/stageName for semantic rendering */
-  narrativeEntries?: Array<{ type: string; text: string; depth: number; stageName?: string; stepNumber?: number }>;
+  /** Structured narrative entries from CombinedNarrativeRecorder for semantic rendering */
+  narrativeEntries?: NarrativeEntry[];
   /** Build-time metadata captured from the builder */
   buildTime: BuildTimeInfo | null;
   /** Runtime structure (spec + resolved dynamic subflows). Used for drill-down. */
@@ -60,6 +62,10 @@ export interface ExecutionResult {
 }
 
 export async function executeCode(code: string, inputJson?: string): Promise<ExecutionResult> {
+  // Clear any previously paused executor — new execution takes over
+  _pausedExecutor = null;
+  _pausedBuildTime = null;
+
   const logs: string[] = [];
   const narrative: string[] = [];
   let capturedExecutor: InstanceType<typeof footprint.FlowChartExecutor> | null =
@@ -126,7 +132,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   // Strip import statements (footprint, agentfootprint, zod, @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
-    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/advanced)?|agentfootprint|zod)['"];?\s*\n?/g,
+    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/(?:advanced|trace))?|agentfootprint|zod)['"];?\s*\n?/g,
     ""
   );
   // Strip default import from @anthropic-ai/sdk (e.g. `import Anthropic from '@anthropic-ai/sdk';`)
@@ -180,6 +186,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
   // Build execution context — all footprint + agentfootprint exports + zod + our proxied classes
   const context: Record<string, unknown> = {
     ...footprint,
+    ...footprintTrace,
     ...agentfootprint,
     z,
     INPUT: parsedInput,

@@ -16,7 +16,7 @@ import {
   FlowChartBuilder,
   FlowChartExecutor,
   MetricRecorder,
-} from 'footprint';
+} from 'footprintjs';
 
 interface OrderState {
   orderId: string;

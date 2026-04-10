@@ -15,7 +15,7 @@ import {
   FlowChartExecutor,
   MetricRecorder,
   DebugRecorder,
-} from 'footprint';
+} from 'footprintjs';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

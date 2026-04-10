@@ -575,7 +575,7 @@ export function LiveRunner() {
                   spec={buildTimeSpec as any}
                   title={resolvedSample?.name ?? "Pipeline"}
                   logs={result.logs}
-                  narrativeEntries={result.narrativeEntries as any}
+                  narrativeEntries={result.narrativeEntries}
                   defaultTab="narrative"
                   defaultExpanded={{ details: true }}
                 />

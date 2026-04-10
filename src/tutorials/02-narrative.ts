@@ -13,7 +13,7 @@ import {
   flowChart,
   
   FlowChartExecutor,
-} from 'footprint';
+} from 'footprintjs';
 
 interface TempState {
   temperature: number;
