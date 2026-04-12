@@ -44,9 +44,9 @@ import structuredErrorCode from "./examples/errors/structured-error-flow.ts?raw"
 
 // ── Use Cases ────────────────────────────────────────────────────────────
 import loanCode from "./examples/getting-started/loan-application.ts?raw";
-import agentReactLoopCode from "./examples/getting-started/agent-react-loop.ts?raw";
-import parallelAgentsCode from "./examples/getting-started/parallel-agents.ts?raw";
-import agentMemoryCode from "./examples/getting-started/agent-memory.ts?raw";
+import agentReactLoopCode from "./examples/integrations/agent-react-loop.ts?raw";
+import parallelAgentsCode from "./examples/integrations/parallel-agents.ts?raw";
+import agentMemoryCode from "./examples/integrations/agent-memory.ts?raw";
 import llmAgentToolCode from "./examples/integrations/llm-agent-tool.ts?raw";
 import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 
