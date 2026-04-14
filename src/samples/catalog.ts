@@ -50,6 +50,20 @@ import agentMemoryCode from "./examples/integrations/agent-memory.ts?raw";
 import llmAgentToolCode from "./examples/integrations/llm-agent-tool.ts?raw";
 import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 
+// ── Agent Patterns (from agentfootprint/examples/) ──────────────────────
+import agentSimpleLLMCode from "./agent-examples/basics/01-simple-llm-call.ts?raw";
+import agentWithToolsCode from "./agent-examples/basics/02-agent-with-tools.ts?raw";
+import agentRAGCode from "./agent-examples/basics/03-rag-retrieval.ts?raw";
+import agentPromptStrategiesCode from "./agent-examples/providers/04-prompt-strategies.ts?raw";
+import agentFlowchartCode from "./agent-examples/orchestration/07-flowchart-pipeline.ts?raw";
+import agentSwarmCode from "./agent-examples/orchestration/08-swarm-delegation.ts?raw";
+import agentRecordersCode from "./agent-examples/observability/10-recorders.ts?raw";
+import agentStreamingCode from "./agent-examples/orchestration/18-streaming-events.ts?raw";
+import agentGatedToolsCode from "./agent-examples/security/20-permission-gated-tools.ts?raw";
+import agentFallbackCode from "./agent-examples/resilience/21-provider-fallback.ts?raw";
+import agentMemoryStoreCode from "./agent-examples/memory/22-persistent-memory.ts?raw";
+import agentExplainCode from "./agent-examples/observability/26-explain-recorder.ts?raw";
+
 const DOCS = 'https://footprintjs.github.io/footPrint';
 
 export interface Sample {
@@ -409,5 +423,93 @@ export const samples: Sample[] = [
     description: "FootPrint complements an existing state machine — each state handler runs a traced flowchart.",
     code: stateMachineCode,
     guideLink: `${DOCS}/guides/building-blocks/subflows/`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // AGENT PATTERNS — agentfootprint library examples
+  // ════════════════════════════════════════════════════════════════════════
+  {
+    id: "agent-simple-llm",
+    name: "Simple LLM Call",
+    category: "Agent Patterns",
+    description: "LLMCall builder — single LLM call, no tools, no loop. The simplest agent concept.",
+    code: agentSimpleLLMCode,
+  },
+  {
+    id: "agent-with-tools",
+    name: "Agent with Tools",
+    category: "Agent Patterns",
+    description: "Agent + defineTool — the LLM calls tools, gets results, responds. Classic ReAct loop.",
+    code: agentWithToolsCode,
+  },
+  {
+    id: "agent-rag",
+    name: "RAG Retrieval",
+    category: "Agent Patterns",
+    description: "RAG builder — retrieve context, augment prompt, generate answer. Retriever + LLM in one pipeline.",
+    code: agentRAGCode,
+  },
+  {
+    id: "agent-prompt-strategies",
+    name: "Prompt Strategies",
+    category: "Agent Patterns",
+    description: "staticPrompt, templatePrompt, skillBasedPrompt — swap prompt strategies without changing the agent.",
+    code: agentPromptStrategiesCode,
+  },
+  {
+    id: "agent-flowchart",
+    name: "FlowChart Pipeline",
+    category: "Agent Patterns",
+    description: "Agent stages composed as a footprintjs flowchart — full narrative, recorders, subflows.",
+    code: agentFlowchartCode,
+  },
+  {
+    id: "agent-swarm",
+    name: "Swarm Delegation",
+    category: "Agent Patterns",
+    description: "Multi-agent swarm — specialist agents delegate to each other based on the conversation topic.",
+    code: agentSwarmCode,
+  },
+  {
+    id: "agent-recorders",
+    name: "Agent Recorders",
+    category: "Agent Patterns",
+    description: "agentObservability() preset — tokens, cost, tool usage in one recorder bundle.",
+    code: agentRecordersCode,
+  },
+  {
+    id: "agent-streaming",
+    name: "Streaming Events",
+    category: "Agent Patterns",
+    description: "9-event lifecycle: turn_start, llm_start, tool_start, tool_end, llm_end, turn_end — for real-time UX.",
+    code: agentStreamingCode,
+  },
+  {
+    id: "agent-gated-tools",
+    name: "Permission-Gated Tools",
+    category: "Agent Patterns",
+    description: "gatedTools() wraps tool access with permission checks — deny, audit, or require approval per tool.",
+    code: agentGatedToolsCode,
+  },
+  {
+    id: "agent-fallback",
+    name: "Provider Fallback",
+    category: "Agent Patterns",
+    description: "Automatic failover between LLM providers — if Claude fails, fall back to OpenAI. Narrative shows which provider was used.",
+    code: agentFallbackCode,
+  },
+  {
+    id: "agent-memory-store",
+    name: "Persistent Memory",
+    category: "Agent Patterns",
+    description: "Multi-turn conversation with persistent memory — InMemoryStore, Redis, Postgres, DynamoDB adapters.",
+    code: agentMemoryStoreCode,
+  },
+  {
+    id: "agent-explain",
+    name: "ExplainRecorder",
+    category: "Agent Patterns",
+    description: "Collect grounding evidence during traversal — sources (tool results), claims (LLM responses), decisions (tool calls).",
+    code: agentExplainCode,
   },
 ];

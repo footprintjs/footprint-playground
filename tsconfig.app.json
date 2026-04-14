@@ -25,5 +25,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/samples/examples", "src/tutorials"]
+  "exclude": ["src/samples/examples", "src/samples/agent-examples", "src/tutorials"]
 }
