@@ -10,6 +10,7 @@ import "@xyflow/react/dist/style.css";
 import { ExplainableShell } from "footprint-explainable-ui";
 import { useTheme } from "../ThemeContext";
 import { samples } from "../samples/catalog";
+import { SampleSidebar, SampleDropdown } from "./SampleSidebar";
 import {
   executeCode,
   resumeExecution,
@@ -172,8 +173,19 @@ export function LiveRunner() {
         />
       )}
 
-      {/* Main content */}
+      {/* Main content — sidebar + panels */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Sidebar (web only) */}
+        {!isMobile && (
+          <SampleSidebar
+            samples={samples}
+            selectedId={selectedId}
+            onSelect={handleSampleChange}
+          />
+        )}
+
+        {/* Panels */}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* === Left Panel (collapsible) === */}
         {(!isMobile && leftCollapsed) ? (
           /* Collapsed: thin strip with expand button */
@@ -584,6 +596,7 @@ export function LiveRunner() {
           )}
         </div>
       </div>
+      </div>{/* end panels wrapper */}
 
       {/* Input Form Modal */}
       {showInputModal && (
@@ -807,43 +820,13 @@ function Toolbar({
         FootPrint
       </Link>
 
-      <select
-        value={selectedId}
-        onChange={(e) => onSampleChange(e.target.value)}
-        style={{
-          background: "var(--bg-tertiary)",
-          color: "var(--text-primary)",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          padding: "6px 10px",
-          fontSize: isMobile ? 12 : 13,
-          cursor: "pointer",
-          outline: "none",
-          flex: isMobile ? 1 : undefined,
-          minWidth: 0,
-        }}
-      >
-        {(() => {
-          const groups: { category: string; items: typeof samples }[] = [];
-          for (const s of samples) {
-            const last = groups[groups.length - 1];
-            if (last && last.category === s.category) {
-              last.items.push(s);
-            } else {
-              groups.push({ category: s.category, items: [s] });
-            }
-          }
-          return groups.map((g) => (
-            <optgroup key={g.category} label={g.category}>
-              {g.items.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </optgroup>
-          ));
-        })()}
-      </select>
+      {isMobile ? (
+        <SampleDropdown samples={samples} selectedId={selectedId} onSelect={onSampleChange} />
+      ) : (
+        <div style={{ fontSize: 13, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {samples.find(s => s.id === selectedId)?.name}
+        </div>
+      )}
 
       {!isMobile && (
         <div
