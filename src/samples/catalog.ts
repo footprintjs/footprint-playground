@@ -109,6 +109,10 @@ import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
 import llmAgentToolCode from "./examples/integrations/llm-agent-tool.ts?raw";
 import agentLoopCode from "./examples/integrations/agent-loop.ts?raw";
 import agentLoopExplainer from "./examples/integrations/agent-loop.md?raw";
+import ecommerceCheckoutCode from "./examples/integrations/ecommerce-checkout.ts?raw";
+import ecommerceCheckoutExplainer from "./examples/integrations/ecommerce-checkout.md?raw";
+import schoolSisEnrollCode from "./examples/integrations/school-sis-enroll.ts?raw";
+import schoolSisEnrollExplainer from "./examples/integrations/school-sis-enroll.md?raw";
 
 
 const DOCS = 'https://footprintjs.github.io/footPrint';
@@ -227,6 +231,8 @@ export const samples: Sample[] = [
   // ════════════════════════════════════════════════════════════════════════
   { id: "loan-application", name: "Loan Application", group: "Use Cases", description: "Full loan underwriting with credit check, DTI, conditional branching.", code: loanCode, guideLink: `${DOCS}/getting-started/quick-start/`, defaultInput: JSON.stringify({ app: { applicantName: "Bob Martinez", annualIncome: 42_000, monthlyDebts: 2_100, creditScore: 580, employmentStatus: "self-employed", employmentYears: 1, loanAmount: 40_000 } }, null, 2) },
   { id: "agent-loop", name: "Agent Loop", group: "Use Cases", description: "ReAct-style agent built with pure footprintjs — decider + loopTo + $break. No external agent library.", code: agentLoopCode, explainer: agentLoopExplainer, defaultInput: JSON.stringify({ userQuery: "When will my order arrive?" }, null, 2) },
+  { id: "ecommerce-checkout", name: "E-commerce Checkout", group: "Use Cases", description: "Inventory + fraud parallel checks, decider routes to approve / manual / reject, $break short-circuits.", code: ecommerceCheckoutCode, explainer: ecommerceCheckoutExplainer, defaultInput: JSON.stringify({ orderId: "ORD-42", customerId: "cust-42", items: [{ sku: "WIDGET-A", qty: 2, unitPrice: 49.99 }, { sku: "GADGET-B", qty: 1, unitPrice: 99.99 }] }, null, 2) },
+  { id: "school-sis-enroll", name: "School SIS — Enroll Student", group: "Use Cases", description: "Validate → prereqs → capacity → decider (enroll / waitlist / reject). Compliance-grade narrative.", code: schoolSisEnrollCode, explainer: schoolSisEnrollExplainer, defaultInput: JSON.stringify({ studentId: "stu-101", studentName: "Alex Morgan", courseCode: "MATH-401", termId: "fall-2026" }, null, 2) },
   { id: "llm-agent-tool", name: "Claude + FootPrint Tool", group: "Use Cases", description: "Flowchart as MCP tool — Claude explains using the causal trace.", code: llmAgentToolCode, guideLink: `${DOCS}/guides/features/self-describing/`, defaultInput: JSON.stringify({ apiKey: "", model: "claude-haiku-4-5-20251001", applicant: { applicantName: "Sarah Chen", creditScore: 720, monthlyIncome: 5000, monthlyDebts: 1800 } }, null, 2) },
   { id: "state-machine", name: "State Machine", group: "Use Cases", description: "FootPrint complements state machines — each handler runs a traced flowchart.", code: stateMachineCode },
 ];
