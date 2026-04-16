@@ -19,6 +19,13 @@ import subflowExplainer from "./examples/building-blocks/05-subflow.md?raw";
 import loopsExplainer from "./examples/building-blocks/06-loops.md?raw";
 import lazySubflowExplainer from "./examples/building-blocks/07-lazy-subflow.md?raw";
 
+// ── Explainers — High-value features ─────────────────────────────────────
+import causalLinearExplainer from "./examples/post-execution/causal-chain/01-linear.md?raw";
+import pauseLinearExplainer from "./examples/runtime-features/pause-resume/01-linear.md?raw";
+import contractExplainer from "./examples/features/10-contract-openapi.md?raw";
+import streamingExplainer from "./examples/features/06-streaming.md?raw";
+import redactionExplainer from "./examples/features/12-redaction.md?raw";
+
 // ── Runtime Features ─────────────────────────────────────────────────────
 // Streaming
 import streamLinearCode from "./examples/runtime-features/streaming/01-linear.ts?raw";
@@ -154,7 +161,7 @@ export const samples: Sample[] = [
   { id: "stream-subflow", name: "Subflow", group: "Runtime Features", subgroup: "Streaming", description: "Streaming inside a nested subflow — tokens route to parent's handlers.", code: streamSubflowCode },
   { id: "stream-loop", name: "Loop", group: "Runtime Features", subgroup: "Streaming", description: "Streaming across loop iterations — each iteration triggers full lifecycle.", code: streamLoopCode },
   // Pause / Resume
-  { id: "pause-linear", name: "Linear", group: "Runtime Features", subgroup: "Pause / Resume", description: "Basic pause/resume with JSON-safe checkpoint.", code: pauseLinearCode, guideLink: `${DOCS}/guides/features/pause-resume/` },
+  { id: "pause-linear", name: "Linear", group: "Runtime Features", subgroup: "Pause / Resume", description: "Basic pause/resume with JSON-safe checkpoint.", code: pauseLinearCode, explainer: pauseLinearExplainer, guideLink: `${DOCS}/guides/features/pause-resume/` },
   { id: "pause-decider", name: "Decider Branch", group: "Runtime Features", subgroup: "Pause / Resume", description: "Pause IN a decider branch — post-decider Done runs after resume.", code: pauseDeciderCode },
   { id: "pause-subflow", name: "Subflow", group: "Runtime Features", subgroup: "Pause / Resume", description: "Pause inside subflow — resume continues parent pipeline.", code: pauseSubflowCode },
   { id: "pause-selector", name: "Selector Branch", group: "Runtime Features", subgroup: "Pause / Resume", description: "Pause in a selector branch — post-selector stages run after resume.", code: pauseSelectorCode },
@@ -177,7 +184,7 @@ export const samples: Sample[] = [
   // ════════════════════════════════════════════════════════════════════════
   // POST-EXECUTION
   // ════════════════════════════════════════════════════════════════════════
-  { id: "causal-linear", name: "Linear Chain", group: "Post-Execution", subgroup: "Causal Chain", description: "Simplest backtrack: C ← B ← A through read/write dependencies.", code: causalLinearCode },
+  { id: "causal-linear", name: "Linear Chain", group: "Post-Execution", subgroup: "Causal Chain", description: "Simplest backtrack: C ← B ← A through read/write dependencies.", code: causalLinearCode, explainer: causalLinearExplainer },
   { id: "causal-decider", name: "Through Decider", group: "Post-Execution", subgroup: "Causal Chain", description: "Backtrack through chosen branch back to decision input.", code: causalDeciderCode },
   { id: "causal-subflow", name: "Through Subflow", group: "Post-Execution", subgroup: "Causal Chain", description: "Backtrack crosses subflow boundary — parent reads subflow writes.", code: causalSubflowCode },
   { id: "causal-loop", name: "Through Loop", group: "Post-Execution", subgroup: "Causal Chain", description: "Backtrack through loop iterations to find data origin.", code: causalLoopCode },
@@ -207,13 +214,13 @@ export const samples: Sample[] = [
   { id: "typed-scope", name: "Typed Scope", group: "Features", description: "flowChart<T>() — compile-time typed property access on scope.", code: typedScopeCode },
   { id: "typed-scope-patterns", name: "TypedScope Patterns", group: "Features", description: "Three ways to use TypedScope: shorthand, builder, $-methods.", code: typedScopePatternsCode },
   { id: "metrics", name: "Metrics", group: "Features", description: "MetricRecorder — per-stage read/write counts and duration.", code: metricsCode },
-  { id: "streaming", name: "Streaming", group: "Features", description: "Streaming stages emit tokens via StreamCallback lifecycle.", code: streamingCode },
+  { id: "streaming", name: "Streaming", group: "Features", description: "Streaming stages emit tokens via StreamCallback lifecycle.", code: streamingCode, explainer: streamingExplainer },
   { id: "error-handling", name: "Error Handling", group: "Features", description: "Errors in pipelines with try/catch and DebugRecorder.", code: errorHandlingCode },
   { id: "debug-mermaid", name: "Debug & Mermaid", group: "Features", description: "DebugRecorder captures every op; toMermaid() generates diagrams.", code: debugMermaidCode },
   { id: "break-fn", name: "Break Function", group: "Features", description: "$break() stops pipeline early — current stage commits.", code: breakFnCode },
-  { id: "contract-openapi", name: "Contract & OpenAPI", group: "Features", description: "I/O contracts + OpenAPI 3.1 from Zod or JSON Schema.", code: contractCode },
+  { id: "contract-openapi", name: "Contract & OpenAPI", group: "Features", description: "I/O contracts + OpenAPI 3.1 from Zod or JSON Schema.", code: contractCode, explainer: contractExplainer },
   { id: "flow-recorders", name: "Flow Recorders", group: "Features", description: "FlowRecorder — decisions, loops, forks, control flow.", code: flowRecordersCode },
-  { id: "redaction", name: "Redaction", group: "Features", description: "Protect sensitive data from leaking into narratives.", code: redactionCode },
+  { id: "redaction", name: "Redaction", group: "Features", description: "Protect sensitive data from leaking into narratives.", code: redactionCode, explainer: redactionExplainer },
   { id: "subflow-redaction", name: "Subflow Redaction", group: "Features", description: "PII carries through outputMapper — [REDACTED] throughout.", code: subflowRedactionCode },
   { id: "composite-recorder", name: "Composite Recorder", group: "Features", description: "Bundle SLA, compliance, metrics into one preset.", code: compositeRecorderCode },
   { id: "recorder-operations", name: "Recorder Operations", group: "Features", description: "Translate, Accumulate, Aggregate — three operations on auto-collected data.", code: recorderOperationsCode },
