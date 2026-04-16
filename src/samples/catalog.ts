@@ -26,6 +26,10 @@ import pauseLinearExplainer from "./examples/runtime-features/pause-resume/01-li
 import contractExplainer from "./examples/features/10-contract-openapi.md?raw";
 import streamingExplainer from "./examples/features/06-streaming.md?raw";
 import redactionExplainer from "./examples/features/12-redaction.md?raw";
+import breakLoopExplainer from "./examples/runtime-features/break/01-loop.md?raw";
+import flowRecordersExplainer from "./examples/features/11-flow-recorders.md?raw";
+import metricsExplainer from "./examples/features/05-metrics.md?raw";
+import debugMermaidExplainer from "./examples/features/08-debug-and-mermaid.md?raw";
 
 // ── Runtime Features ─────────────────────────────────────────────────────
 // Streaming
@@ -158,7 +162,7 @@ export const samples: Sample[] = [
   { id: "pause-selector", name: "Selector Branch", group: "Runtime Features", subgroup: "Pause / Resume", description: "Pause in a selector branch — post-selector stages run after resume.", code: pauseSelectorCode },
   { id: "pause-no-continuation", name: "No Continuation", group: "Runtime Features", subgroup: "Pause / Resume", description: "Edge case: decider is last stage — clean termination after resume.", code: pauseNoContinuationCode },
   // Break
-  { id: "break-loop", name: "Loop Exit", group: "Runtime Features", subgroup: "Break", description: "$break() exits loop — pagination pattern.", code: breakLoopCode },
+  { id: "break-loop", name: "Loop Exit", group: "Runtime Features", subgroup: "Break", description: "$break() exits loop — pagination pattern.", code: breakLoopCode, explainer: breakLoopExplainer },
   { id: "break-subflow", name: "Subflow Scoped", group: "Runtime Features", subgroup: "Break", description: "$break() inside subflow stops subflow only — parent continues.", code: breakSubflowCode },
   { id: "break-decider", name: "Decider Branch", group: "Runtime Features", subgroup: "Break", description: "$break() in decider branch — pipeline-wide stop.", code: breakDeciderCode },
   // Data Recorder
@@ -204,13 +208,13 @@ export const samples: Sample[] = [
   { id: "recorders", name: "Scope Recorders", group: "Features", description: "Recorders observe scope operations for audit logs and telemetry.", code: recordersCode },
   { id: "typed-scope", name: "Typed Scope", group: "Features", description: "flowChart<T>() — compile-time typed property access on scope.", code: typedScopeCode },
   { id: "typed-scope-patterns", name: "TypedScope Patterns", group: "Features", description: "Three ways to use TypedScope: shorthand, builder, $-methods.", code: typedScopePatternsCode },
-  { id: "metrics", name: "Metrics", group: "Features", description: "MetricRecorder — per-stage read/write counts and duration.", code: metricsCode },
+  { id: "metrics", name: "Metrics", group: "Features", description: "MetricRecorder — per-stage read/write counts and duration.", code: metricsCode, explainer: metricsExplainer },
   { id: "streaming", name: "Streaming", group: "Features", description: "Streaming stages emit tokens via StreamCallback lifecycle.", code: streamingCode, explainer: streamingExplainer },
   { id: "error-handling", name: "Error Handling", group: "Features", description: "Errors in pipelines with try/catch and DebugRecorder.", code: errorHandlingCode },
-  { id: "debug-mermaid", name: "Debug & Mermaid", group: "Features", description: "DebugRecorder captures every op; toMermaid() generates diagrams.", code: debugMermaidCode },
+  { id: "debug-mermaid", name: "Debug & Mermaid", group: "Features", description: "DebugRecorder captures every op; toMermaid() generates diagrams.", code: debugMermaidCode, explainer: debugMermaidExplainer },
   { id: "break-fn", name: "Break Function", group: "Features", description: "$break() stops pipeline early — current stage commits.", code: breakFnCode },
   { id: "contract-openapi", name: "Contract & OpenAPI", group: "Features", description: "I/O contracts + OpenAPI 3.1 from Zod or JSON Schema.", code: contractCode, explainer: contractExplainer },
-  { id: "flow-recorders", name: "Flow Recorders", group: "Features", description: "FlowRecorder — decisions, loops, forks, control flow.", code: flowRecordersCode },
+  { id: "flow-recorders", name: "Flow Recorders", group: "Features", description: "FlowRecorder — decisions, loops, forks, control flow.", code: flowRecordersCode, explainer: flowRecordersExplainer },
   { id: "redaction", name: "Redaction", group: "Features", description: "Protect sensitive data from leaking into narratives.", code: redactionCode, explainer: redactionExplainer },
   { id: "subflow-redaction", name: "Subflow Redaction", group: "Features", description: "PII carries through outputMapper — [REDACTED] throughout.", code: subflowRedactionCode },
   { id: "composite-recorder", name: "Composite Recorder", group: "Features", description: "Bundle SLA, compliance, metrics into one preset.", code: compositeRecorderCode },
@@ -229,10 +233,15 @@ export const samples: Sample[] = [
   // ════════════════════════════════════════════════════════════════════════
   // USE CASES
   // ════════════════════════════════════════════════════════════════════════
-  { id: "loan-application", name: "Loan Application", group: "Use Cases", description: "Full loan underwriting with credit check, DTI, conditional branching.", code: loanCode, guideLink: `${DOCS}/getting-started/quick-start/`, defaultInput: JSON.stringify({ app: { applicantName: "Bob Martinez", annualIncome: 42_000, monthlyDebts: 2_100, creditScore: 580, employmentStatus: "self-employed", employmentYears: 1, loanAmount: 40_000 } }, null, 2) },
-  { id: "agent-loop", name: "Agent Loop", group: "Use Cases", description: "ReAct-style agent built with pure footprintjs — decider + loopTo + $break. No external agent library.", code: agentLoopCode, explainer: agentLoopExplainer, defaultInput: JSON.stringify({ userQuery: "When will my order arrive?" }, null, 2) },
-  { id: "ecommerce-checkout", name: "E-commerce Checkout", group: "Use Cases", description: "Inventory + fraud parallel checks, decider routes to approve / manual / reject, $break short-circuits.", code: ecommerceCheckoutCode, explainer: ecommerceCheckoutExplainer, defaultInput: JSON.stringify({ orderId: "ORD-42", customerId: "cust-42", items: [{ sku: "WIDGET-A", qty: 2, unitPrice: 49.99 }, { sku: "GADGET-B", qty: 1, unitPrice: 99.99 }] }, null, 2) },
-  { id: "school-sis-enroll", name: "School SIS — Enroll Student", group: "Use Cases", description: "Validate → prereqs → capacity → decider (enroll / waitlist / reject). Compliance-grade narrative.", code: schoolSisEnrollCode, explainer: schoolSisEnrollExplainer, defaultInput: JSON.stringify({ studentId: "stu-101", studentName: "Alex Morgan", courseCode: "MATH-401", termId: "fall-2026" }, null, 2) },
-  { id: "llm-agent-tool", name: "Claude + FootPrint Tool", group: "Use Cases", description: "Flowchart as MCP tool — Claude explains using the causal trace.", code: llmAgentToolCode, guideLink: `${DOCS}/guides/features/self-describing/`, defaultInput: JSON.stringify({ apiKey: "", model: "claude-haiku-4-5-20251001", applicant: { applicantName: "Sarah Chen", creditScore: 720, monthlyIncome: 5000, monthlyDebts: 1800 } }, null, 2) },
-  { id: "state-machine", name: "State Machine", group: "Use Cases", description: "FootPrint complements state machines — each handler runs a traced flowchart.", code: stateMachineCode },
+  // Business workflows — real-world apps composed from primitives
+  { id: "loan-application", name: "Loan Application", group: "Use Cases", subgroup: "Business Workflows", description: "Full loan underwriting with credit check, DTI, conditional branching.", code: loanCode, guideLink: `${DOCS}/getting-started/quick-start/`, defaultInput: JSON.stringify({ app: { applicantName: "Bob Martinez", annualIncome: 42_000, monthlyDebts: 2_100, creditScore: 580, employmentStatus: "self-employed", employmentYears: 1, loanAmount: 40_000 } }, null, 2) },
+  { id: "ecommerce-checkout", name: "E-commerce Checkout", group: "Use Cases", subgroup: "Business Workflows", description: "Inventory + fraud parallel checks, decider routes to approve / manual / reject, $break short-circuits.", code: ecommerceCheckoutCode, explainer: ecommerceCheckoutExplainer, defaultInput: JSON.stringify({ orderId: "ORD-42", customerId: "cust-42", items: [{ sku: "WIDGET-A", qty: 2, unitPrice: 49.99 }, { sku: "GADGET-B", qty: 1, unitPrice: 99.99 }] }, null, 2) },
+  { id: "school-sis-enroll", name: "School SIS — Enroll Student", group: "Use Cases", subgroup: "Business Workflows", description: "Validate → prereqs → capacity → decider (enroll / waitlist / reject). Compliance-grade narrative.", code: schoolSisEnrollCode, explainer: schoolSisEnrollExplainer, defaultInput: JSON.stringify({ studentId: "stu-101", studentName: "Alex Morgan", courseCode: "MATH-401", termId: "fall-2026" }, null, 2) },
+
+  // AI & Agents — LLM-driven patterns
+  { id: "agent-loop", name: "Agent Loop", group: "Use Cases", subgroup: "AI & Agents", description: "ReAct-style agent built with pure footprintjs — decider + loopTo + $break. No external agent library.", code: agentLoopCode, explainer: agentLoopExplainer, defaultInput: JSON.stringify({ userQuery: "When will my order arrive?" }, null, 2) },
+  { id: "llm-agent-tool", name: "Claude + FootPrint Tool", group: "Use Cases", subgroup: "AI & Agents", description: "Flowchart as MCP tool — Claude explains using the causal trace.", code: llmAgentToolCode, guideLink: `${DOCS}/guides/features/self-describing/`, defaultInput: JSON.stringify({ apiKey: "", model: "claude-haiku-4-5-20251001", applicant: { applicantName: "Sarah Chen", creditScore: 720, monthlyIncome: 5000, monthlyDebts: 1800 } }, null, 2) },
+
+  // Infrastructure — library-as-plumbing patterns
+  { id: "state-machine", name: "State Machine", group: "Use Cases", subgroup: "Infrastructure", description: "FootPrint complements state machines — each handler runs a traced flowchart.", code: stateMachineCode },
 ];
