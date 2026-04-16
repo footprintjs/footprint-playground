@@ -1,5 +1,6 @@
 // Sample code imported as raw text strings via Vite's ?raw
-// Source: footPrint/examples/ (symlinked) + agentfootprint/examples/ (symlinked)
+// Source: footPrint/examples/ (symlinked).
+// Agent patterns live in the agentfootprint library/playground, not here.
 
 // ── Building Blocks ──────────────────────────────────────────────────────
 import linearCode from "./examples/building-blocks/01-linear.ts?raw";
@@ -105,24 +106,10 @@ import filterRulesCode from "./examples/build-time-features/decide-select/01-fil
 // ── Use Cases ────────────────────────────────────────────────────────────
 import loanCode from "./examples/getting-started/loan-application.ts?raw";
 import stateMachineCode from "./examples/integrations/state-machine.ts?raw";
-import agentReactLoopCode from "./examples/integrations/agent-react-loop.ts?raw";
-import parallelAgentsCode from "./examples/integrations/parallel-agents.ts?raw";
-import agentMemoryCode from "./examples/integrations/agent-memory.ts?raw";
 import llmAgentToolCode from "./examples/integrations/llm-agent-tool.ts?raw";
+import agentLoopCode from "./examples/integrations/agent-loop.ts?raw";
+import agentLoopExplainer from "./examples/integrations/agent-loop.md?raw";
 
-// ── Agent Patterns (agentfootprint) ──────────────────────────────────────
-import agentSimpleLLMCode from "./agent-examples/basics/01-simple-llm-call.ts?raw";
-import agentWithToolsCode from "./agent-examples/basics/02-agent-with-tools.ts?raw";
-import agentRAGCode from "./agent-examples/basics/03-rag-retrieval.ts?raw";
-import agentPromptStrategiesCode from "./agent-examples/providers/04-prompt-strategies.ts?raw";
-import agentFlowchartCode from "./agent-examples/orchestration/07-flowchart-pipeline.ts?raw";
-import agentSwarmCode from "./agent-examples/orchestration/08-swarm-delegation.ts?raw";
-import agentRecordersCode from "./agent-examples/observability/10-recorders.ts?raw";
-import agentStreamingCode from "./agent-examples/orchestration/18-streaming-events.ts?raw";
-import agentGatedToolsCode from "./agent-examples/security/20-permission-gated-tools.ts?raw";
-import agentFallbackCode from "./agent-examples/resilience/21-provider-fallback.ts?raw";
-import agentMemoryStoreCode from "./agent-examples/memory/22-persistent-memory.ts?raw";
-import agentExplainCode from "./agent-examples/observability/26-explain-recorder.ts?raw";
 
 const DOCS = 'https://footprintjs.github.io/footPrint';
 
@@ -239,25 +226,7 @@ export const samples: Sample[] = [
   // USE CASES
   // ════════════════════════════════════════════════════════════════════════
   { id: "loan-application", name: "Loan Application", group: "Use Cases", description: "Full loan underwriting with credit check, DTI, conditional branching.", code: loanCode, guideLink: `${DOCS}/getting-started/quick-start/`, defaultInput: JSON.stringify({ app: { applicantName: "Bob Martinez", annualIncome: 42_000, monthlyDebts: 2_100, creditScore: 580, employmentStatus: "self-employed", employmentYears: 1, loanAmount: 40_000 } }, null, 2) },
-  { id: "agent-react-loop", name: "Agent ReAct Loop", group: "Use Cases", description: "Agent loop with RouteResponse decider — tool calls then finalization.", code: agentReactLoopCode },
-  { id: "parallel-agents", name: "Parallel Agents", group: "Use Cases", description: "Research + writing agents in parallel, then merge with LLM.", code: parallelAgentsCode },
-  { id: "agent-memory", name: "Agent Memory", group: "Use Cases", description: "Multi-turn conversation with persistent memory.", code: agentMemoryCode },
+  { id: "agent-loop", name: "Agent Loop", group: "Use Cases", description: "ReAct-style agent built with pure footprintjs — decider + loopTo + $break. No external agent library.", code: agentLoopCode, explainer: agentLoopExplainer, defaultInput: JSON.stringify({ userQuery: "When will my order arrive?" }, null, 2) },
   { id: "llm-agent-tool", name: "Claude + FootPrint Tool", group: "Use Cases", description: "Flowchart as MCP tool — Claude explains using the causal trace.", code: llmAgentToolCode, guideLink: `${DOCS}/guides/features/self-describing/`, defaultInput: JSON.stringify({ apiKey: "", model: "claude-haiku-4-5-20251001", applicant: { applicantName: "Sarah Chen", creditScore: 720, monthlyIncome: 5000, monthlyDebts: 1800 } }, null, 2) },
   { id: "state-machine", name: "State Machine", group: "Use Cases", description: "FootPrint complements state machines — each handler runs a traced flowchart.", code: stateMachineCode },
-
-  // ════════════════════════════════════════════════════════════════════════
-  // AGENT PATTERNS (agentfootprint)
-  // ════════════════════════════════════════════════════════════════════════
-  { id: "agent-simple-llm", name: "Simple LLM Call", group: "Agent Patterns", description: "LLMCall builder — single call, no tools, no loop.", code: agentSimpleLLMCode },
-  { id: "agent-with-tools", name: "Agent with Tools", group: "Agent Patterns", description: "Agent + defineTool — LLM calls tools, gets results, responds.", code: agentWithToolsCode },
-  { id: "agent-rag", name: "RAG Retrieval", group: "Agent Patterns", description: "RAG builder — retrieve context, augment prompt, generate.", code: agentRAGCode },
-  { id: "agent-prompt-strategies", name: "Prompt Strategies", group: "Agent Patterns", description: "staticPrompt, templatePrompt, skillBasedPrompt — swap without changing agent.", code: agentPromptStrategiesCode },
-  { id: "agent-flowchart", name: "FlowChart Pipeline", group: "Agent Patterns", description: "Agent stages as a footprintjs flowchart — full narrative + recorders.", code: agentFlowchartCode },
-  { id: "agent-swarm", name: "Swarm Delegation", group: "Agent Patterns", description: "Multi-agent swarm — specialists delegate based on conversation.", code: agentSwarmCode },
-  { id: "agent-recorders", name: "Agent Recorders", group: "Agent Patterns", description: "agentObservability() preset — tokens, cost, tool usage.", code: agentRecordersCode },
-  { id: "agent-streaming", name: "Streaming Events", group: "Agent Patterns", description: "9-event lifecycle for real-time UX.", code: agentStreamingCode },
-  { id: "agent-gated-tools", name: "Permission-Gated Tools", group: "Agent Patterns", description: "gatedTools() — deny, audit, or require approval per tool.", code: agentGatedToolsCode },
-  { id: "agent-fallback", name: "Provider Fallback", group: "Agent Patterns", description: "Auto failover between LLM providers.", code: agentFallbackCode },
-  { id: "agent-memory-store", name: "Persistent Memory", group: "Agent Patterns", description: "Multi-turn with InMemoryStore, Redis, Postgres adapters.", code: agentMemoryStoreCode },
-  { id: "agent-explain", name: "ExplainRecorder", group: "Agent Patterns", description: "Grounding evidence: sources, claims, decisions.", code: agentExplainCode },
 ];

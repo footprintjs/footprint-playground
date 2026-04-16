@@ -1,6 +1,5 @@
 import * as footprint from "footprintjs";
 import * as footprintTrace from "footprintjs/trace";
-import * as agentfootprint from "agentfootprint";
 import type { NarrativeEntry } from "footprint-explainable-ui";
 import { transform } from "sucrase";
 import { z } from "zod";
@@ -154,9 +153,9 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
 
-  // Strip import statements (footprint, agentfootprint, zod, @anthropic-ai/sdk — all injected into context)
+  // Strip import statements (footprint, zod, @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
-    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/(?:advanced|trace))?|agentfootprint|zod)['"];?\s*\n?/g,
+    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/(?:advanced|trace))?|zod)['"];?\s*\n?/g,
     ""
   );
   // Strip default import from @anthropic-ai/sdk (e.g. `import Anthropic from '@anthropic-ai/sdk';`)
@@ -207,11 +206,10 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     }
   }
 
-  // Build execution context — all footprint + agentfootprint exports + zod + our proxied classes
+  // Build execution context — all footprint exports + zod + our proxied classes
   const context: Record<string, unknown> = {
     ...footprint,
     ...footprintTrace,
-    ...agentfootprint,
     z,
     INPUT: parsedInput,
     FlowChartExecutor: ProxiedExecutor,

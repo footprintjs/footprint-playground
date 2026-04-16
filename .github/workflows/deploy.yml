@@ -17,9 +17,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Check out sibling repos so symlinks resolve:
-      #   src/samples/examples        -> ../../../footPrint/examples
-      #   src/samples/agent-examples  -> ../../../agentfootprint/examples
+      # Check out footPrint so the symlink src/samples/examples -> ../../../footPrint/examples resolves.
       - uses: actions/checkout@v4
         with:
           path: footprint-playground
@@ -28,11 +26,6 @@ jobs:
         with:
           repository: footprintjs/footPrint
           path: footPrint
-
-      - uses: actions/checkout@v4
-        with:
-          repository: footprintjs/agentfootprint
-          path: agentfootprint
 
       - uses: actions/setup-node@v4
         with:
@@ -44,7 +37,6 @@ jobs:
         run: |
           sed -i 's|"footprintjs": "file:../footPrint"|"footprintjs": "^4.12.0"|' package.json
           sed -i 's|"footprint-explainable-ui": "file:../explainable-ui"|"footprint-explainable-ui": "^0.15.0"|' package.json
-          sed -i 's|"agentfootprint": "file:../agentfootprint"|"agentfootprint": "^1.6.0"|' package.json
           rm -f package-lock.json
 
       - run: npm install
