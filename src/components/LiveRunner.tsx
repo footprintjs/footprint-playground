@@ -8,6 +8,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ExplainableShell } from "footprint-explainable-ui";
+import { SampleExplainer } from "./SampleExplainer";
+import { FlowDescription, FORMAT_CAPTION } from "./FlowDescription";
+import { FlowchartTabs, FadeIn, type DescriptionFormat } from "./FlowchartTabs";
 import { useTheme } from "../ThemeContext";
 import { samples } from "../samples/catalog";
 import { SampleSidebar, SampleDropdown } from "./SampleSidebar";
@@ -22,7 +25,6 @@ import {
   useSubflowNavigation,
   type SpecNode,
 } from "footprint-explainable-ui/flowchart";
-import { SpecView } from "./SpecView";
 
 const nodeTypes: NodeTypes = { stage: StageNode as any };
 
@@ -39,7 +41,21 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-type LeftTab = "code" | "spec" | "flowchart";
+type LeftTab = "explain" | "code" | "flow";
+type FlowSubTab = "visual" | "description";
+
+/** Capability sentences — what each primary tab teaches the user (and any LLM reading the page).
+ *  Shown only when the tab has no deeper active selection (Flowchart delegates to sub-tabs). */
+const LEFT_TAB_CAPTION: Partial<Record<LeftTab, string>> = {
+  explain: "Teach what this pattern is.",
+  code: "Author the flowchart.",
+};
+
+/** Capability sentences for sub-tabs inside Flowchart. Format caption overrides this when Description is active. */
+const FLOW_SUB_CAPTION: Record<FlowSubTab, string> = {
+  visual: "See the diagram.",
+  description: "Expose this flow to other systems.",
+};
 
 type MobilePanel = "code" | "output";
 
@@ -61,6 +77,8 @@ export function LiveRunner() {
   const [running, setRunning] = useState(false);
   const [resumedFrom, setResumedFrom] = useState<{ question?: string; input?: unknown } | null>(null);
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
+  const [flowSubTab, setFlowSubTab] = useState<FlowSubTab>("visual");
+  const [descriptionFormat, setDescriptionFormat] = useState<DescriptionFormat>("mcp");
   // Right panel tabs managed by ExplainableShell internally
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [inputJson, setInputJson] = useState(navInputJson ?? resolvedSample.defaultInput ?? "");
@@ -78,7 +96,8 @@ export function LiveRunner() {
     setInputJson(navInputJson ?? resolvedSample.defaultInput ?? "");
     setInputOpen(!!(navInputJson ?? resolvedSample.defaultInput));
     setResult(null);
-    setLeftTab("code");
+    setLeftTab(resolvedSample.explainer ? "explain" : "code");
+    setFlowSubTab("visual");
   // navInputJson intentionally excluded — only re-sync on sample change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedSample.id]);
@@ -246,20 +265,21 @@ export function LiveRunner() {
           >
             <TabBar
               tabs={[
+                {
+                  id: "explain",
+                  label: "Explain",
+                  disabled: !resolvedSample.explainer,
+                },
                 { id: "code", label: "Code" },
                 {
-                  id: "spec",
-                  label: isMobile ? "Spec" : "Flow Definition",
-                  disabled: !result?.buildTime,
-                },
-                {
-                  id: "flowchart",
+                  id: "flow",
                   label: "Flowchart",
-                  disabled: !buildTimeFlowData,
+                  disabled: !buildTimeFlowData && !result?.buildTime,
                 },
               ]}
               active={leftTab}
               onChange={(t) => setLeftTab(t as LeftTab)}
+              caption={LEFT_TAB_CAPTION[leftTab]}  /* undefined on Flowchart → no caption row */
               trailing={
                 isMobile ? (
                   <button
@@ -403,36 +423,69 @@ export function LiveRunner() {
                   </div>
                 </>
               )}
-              {leftTab === "spec" && result?.buildTime && (
-                <SpecView buildTime={result.buildTime} />
+              {leftTab === "explain" && resolvedSample.explainer && (
+                <SampleExplainer markdown={resolvedSample.explainer} />
               )}
-              {leftTab === "flowchart" && buildTimeFlowData && (
-                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-                  <SubflowBreadcrumb
-                    breadcrumbs={buildSubflow.breadcrumbs}
-                    onNavigate={buildSubflow.navigateTo}
+              {leftTab === "flow" && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <FlowchartTabs
+                    active={flowSubTab}
+                    onChange={setFlowSubTab}
+                    caption={
+                      flowSubTab === "description"
+                        ? FORMAT_CAPTION[descriptionFormat]
+                        : FLOW_SUB_CAPTION[flowSubTab]
+                    }
+                    format={descriptionFormat}
+                    onFormatChange={setDescriptionFormat}
                   />
-                  <div style={{ flex: 1 }}>
-                    <ReactFlow
-                      nodes={buildTimeFlowData.nodes}
-                      edges={buildTimeFlowData.edges}
-                      nodeTypes={nodeTypes}
-                      fitView
-                      proOptions={{ hideAttribution: true }}
-                      nodesDraggable={false}
-                      nodesConnectable={false}
-                      elementsSelectable
-                      panOnDrag
-                      zoomOnScroll
-                      onNodeClick={(_e, node) => buildSubflow.handleNodeClick(node.id)}
-                    >
-                      <Background
-                        color={theme === "dark" ? "#2e2938" : "#e4d5c3"}
-                        gap={20}
-                        size={1}
-                      />
-                    </ReactFlow>
-                  </div>
+
+                  <FadeIn deps={`${flowSubTab}:${descriptionFormat}`}>
+                    {flowSubTab === "visual" && (
+                      buildTimeFlowData ? (
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                          <SubflowBreadcrumb
+                            breadcrumbs={buildSubflow.breadcrumbs}
+                            onNavigate={buildSubflow.navigateTo}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <ReactFlow
+                              nodes={buildTimeFlowData.nodes}
+                              edges={buildTimeFlowData.edges}
+                              nodeTypes={nodeTypes}
+                              fitView
+                              proOptions={{ hideAttribution: true }}
+                              nodesDraggable={false}
+                              nodesConnectable={false}
+                              elementsSelectable
+                              panOnDrag
+                              zoomOnScroll
+                              onNodeClick={(_e, node) => buildSubflow.handleNodeClick(node.id)}
+                            >
+                              <Background
+                                color={theme === "dark" ? "#2e2938" : "#e4d5c3"}
+                                gap={20}
+                                size={1}
+                              />
+                            </ReactFlow>
+                          </div>
+                        </div>
+                      ) : (
+                        <EmptyRunHint label="Run the code to see the flowchart." />
+                      )
+                    )}
+
+                    {flowSubTab === "description" && (
+                      result?.buildTime ? (
+                        <FlowDescription
+                          buildTime={result.buildTime}
+                          format={descriptionFormat}
+                        />
+                      ) : (
+                        <EmptyRunHint label="Run the code to see the flow description." />
+                      )
+                    )}
+                  </FadeIn>
                 </div>
               )}
             </div>
@@ -948,61 +1001,99 @@ function MobilePanelToggle({
   );
 }
 
+function EmptyRunHint({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text-muted)",
+        fontSize: 13,
+        padding: 24,
+        textAlign: "center",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 function TabBar({
   tabs,
   active,
   onChange,
   trailing,
+  caption,
 }: {
   tabs: { id: string; label: string; disabled?: boolean }[];
   active: string;
   onChange: (id: string) => void;
   trailing?: React.ReactNode;
+  /** Short capability sentence shown below the active tab. Teaches what this tab does. */
+  caption?: string;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--bg-secondary)",
-        flexShrink: 0,
-      }}
-    >
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => !tab.disabled && onChange(tab.id)}
-          disabled={tab.disabled}
+    <div style={{ flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          borderBottom: caption ? "none" : "1px solid var(--border)",
+          background: "var(--bg-secondary)",
+        }}
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => !tab.disabled && onChange(tab.id)}
+            disabled={tab.disabled}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderBottom:
+                active === tab.id
+                  ? "2px solid var(--accent)"
+                  : "2px solid transparent",
+              background: "transparent",
+              color: tab.disabled
+                ? "var(--text-muted)"
+                : active === tab.id
+                  ? "var(--accent)"
+                  : "var(--text-secondary)",
+              fontSize: 12,
+              fontWeight: active === tab.id ? 600 : 400,
+              cursor: tab.disabled ? "default" : "pointer",
+              opacity: tab.disabled ? 0.5 : 1,
+              transition: "all 0.15s",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        {trailing && (
+          <>
+            <div style={{ flex: 1 }} />
+            {trailing}
+          </>
+        )}
+      </div>
+      {caption && (
+        <div
           style={{
-            padding: "8px 16px",
-            border: "none",
-            borderBottom:
-              active === tab.id
-                ? "2px solid var(--accent)"
-                : "2px solid transparent",
-            background: "transparent",
-            color: tab.disabled
-              ? "var(--text-muted)"
-              : active === tab.id
-                ? "var(--accent)"
-                : "var(--text-secondary)",
-            fontSize: 12,
-            fontWeight: active === tab.id ? 600 : 400,
-            cursor: tab.disabled ? "default" : "pointer",
-            opacity: tab.disabled ? 0.5 : 1,
-            transition: "all 0.15s",
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
+            padding: "6px 16px 8px",
+            fontSize: 11.5,
+            color: "var(--text-muted)",
+            background: "var(--bg-secondary)",
+            borderBottom: "1px solid var(--border)",
+            fontStyle: "italic",
+            letterSpacing: 0.1,
           }}
         >
-          {tab.label}
-        </button>
-      ))}
-      {trailing && (
-        <>
-          <div style={{ flex: 1 }} />
-          {trailing}
-        </>
+          {caption}
+        </div>
       )}
     </div>
   );

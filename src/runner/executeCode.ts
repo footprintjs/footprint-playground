@@ -34,6 +34,12 @@ export interface BuildTimeInfo {
   inputSchema?: unknown;
   /** Output schema if declared */
   outputSchema?: unknown;
+  /** MCP tool description from chart.toMCPTool() — what LLMs consume to decide how to call this flow. */
+  mcpTool?: unknown;
+  /** OpenAPI spec from chart.toOpenAPI() — available when the chart declares a .contract(). */
+  openAPI?: unknown;
+  /** Error message if toOpenAPI() failed (typically: no contract declared). */
+  openAPIError?: string;
 }
 
 export interface ExecutionResult {
@@ -103,6 +109,21 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
         }
       }
 
+      let mcpTool: unknown;
+      try {
+        mcpTool = (chart as any).toMCPTool?.();
+      } catch {
+        // chart may not expose toMCPTool in older builds
+      }
+
+      let openAPI: unknown;
+      let openAPIError: string | undefined;
+      try {
+        openAPI = (chart as any).toOpenAPI?.();
+      } catch (e) {
+        openAPIError = e instanceof Error ? e.message : String(e);
+      }
+
       capturedBuildTime = {
         mermaid,
         spec: chart.buildTimeStructure as unknown as Record<string, unknown>,
@@ -110,6 +131,9 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
         stageDescriptions: stageDescs,
         inputSchema: chart.inputSchema,
         outputSchema: chart.outputSchema,
+        mcpTool,
+        openAPI,
+        openAPIError,
       };
 
       return chart;

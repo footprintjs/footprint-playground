@@ -8,8 +8,16 @@ import deciderCode from "./examples/building-blocks/03-decider.ts?raw";
 import selectorCode from "./examples/building-blocks/04-selector.ts?raw";
 import subflowCode from "./examples/building-blocks/05-subflow.ts?raw";
 import loopsCode from "./examples/building-blocks/06-loops.ts?raw";
-import structuralSubflowCode from "./examples/building-blocks/07-structural-subflow.ts?raw";
-import lazySubflowCode from "./examples/building-blocks/08-lazy-subflow.ts?raw";
+import lazySubflowCode from "./examples/building-blocks/07-lazy-subflow.ts?raw";
+
+// ── Explainers — Building Blocks ─────────────────────────────────────────
+import linearExplainer from "./examples/building-blocks/01-linear.md?raw";
+import forkExplainer from "./examples/building-blocks/02-fork.md?raw";
+import deciderExplainer from "./examples/building-blocks/03-decider.md?raw";
+import selectorExplainer from "./examples/building-blocks/04-selector.md?raw";
+import subflowExplainer from "./examples/building-blocks/05-subflow.md?raw";
+import loopsExplainer from "./examples/building-blocks/06-loops.md?raw";
+import lazySubflowExplainer from "./examples/building-blocks/07-lazy-subflow.md?raw";
 
 // ── Runtime Features ─────────────────────────────────────────────────────
 // Streaming
@@ -51,7 +59,6 @@ import contractCode from "./examples/features/10-contract-openapi.ts?raw";
 import flowRecordersCode from "./examples/features/11-flow-recorders.ts?raw";
 import redactionCode from "./examples/features/12-redaction.ts?raw";
 import typedScopePatternsCode from "./examples/features/13-typed-scope-patterns.ts?raw";
-import decideSelectCode from "./examples/features/16-decide-select.ts?raw";
 import subflowRedactionCode from "./examples/features/17-subflow-redaction.ts?raw";
 import compositeRecorderCode from "./examples/features/18-composite-recorder.ts?raw";
 import pauseResumeCode from "./examples/features/19-pause-resume.ts?raw";
@@ -121,6 +128,8 @@ export interface Sample {
   subgroup?: string;
   description: string;
   code: string;
+  /** Raw markdown string rendered in the "Explain" tab. When present, the tab is enabled. */
+  explainer?: string;
   defaultInput?: string;
   guideLink?: string;
 }
@@ -129,15 +138,13 @@ export const samples: Sample[] = [
   // ════════════════════════════════════════════════════════════════════════
   // BUILDING BLOCKS
   // ════════════════════════════════════════════════════════════════════════
-  { id: "linear", name: "Linear Pipeline", group: "Building Blocks", description: "Stages execute one after another: FetchUser → EnrichProfile → SendWelcomeEmail.", code: linearCode, guideLink: `${DOCS}/guides/building-blocks/stages/`, defaultInput: JSON.stringify({ userId: 42 }, null, 2) },
-  { id: "fork", name: "Fork (Parallel)", group: "Building Blocks", description: "Fork runs inventory check and fraud check in parallel, then finalizes.", code: forkCode, guideLink: `${DOCS}/guides/building-blocks/stages/` },
-  { id: "decider", name: "Decider (Conditional)", group: "Building Blocks", description: "Classify a customer's tier and route to loyalty discount, upgrade, or onboarding.", code: deciderCode, guideLink: `${DOCS}/guides/building-blocks/decisions/` },
-  { id: "selector", name: "Selector", group: "Building Blocks", description: "Triage a patient's vitals and run matching screening branches in parallel.", code: selectorCode, guideLink: `${DOCS}/guides/building-blocks/decisions/` },
-  { id: "subflow", name: "Subflow", group: "Building Blocks", description: "Nest a payment processing flowchart inside an order pipeline.", code: subflowCode, guideLink: `${DOCS}/guides/building-blocks/subflows/` },
-  { id: "loops", name: "Loops", group: "Building Blocks", description: "Retry an unstable API with exponential backoff using loopTo and $break.", code: loopsCode, guideLink: `${DOCS}/guides/patterns/loops-and-retry/` },
-  { id: "structural-subflow", name: "Structural Subflow", group: "Building Blocks", description: "Attach a pre-executed subflow's structure for visualization.", code: structuralSubflowCode, guideLink: `${DOCS}/guides/building-blocks/subflows/` },
-  { id: "lazy-subflow", name: "Lazy Subflow", group: "Building Blocks", description: "Graph-of-services — 3 lazy branches, only selected ones resolve and execute.", code: lazySubflowCode, guideLink: `${DOCS}/guides/building-blocks/subflows/`, defaultInput: JSON.stringify({ requiredServices: ["auth", "payment"] }, null, 2) },
-  { id: "decide-select", name: "decide() / select()", group: "Building Blocks", description: "Auto-capture WHY a decider chose a branch — filter-style rules with evidence.", code: decideSelectCode, guideLink: `${DOCS}/guides/building-blocks/decisions/` },
+  { id: "linear", name: "Linear Pipeline", group: "Building Blocks", description: "Stages execute one after another: FetchUser → EnrichProfile → SendWelcomeEmail.", code: linearCode, explainer: linearExplainer, guideLink: `${DOCS}/guides/building-blocks/stages/`, defaultInput: JSON.stringify({ userId: 42 }, null, 2) },
+  { id: "fork", name: "Fork (Parallel)", group: "Building Blocks", description: "Fork runs inventory check and fraud check in parallel, then finalizes.", code: forkCode, explainer: forkExplainer, guideLink: `${DOCS}/guides/building-blocks/stages/` },
+  { id: "decider", name: "Decider (Conditional)", group: "Building Blocks", description: "Classify a customer's tier and route to loyalty discount, upgrade, or onboarding.", code: deciderCode, explainer: deciderExplainer, guideLink: `${DOCS}/guides/building-blocks/decisions/` },
+  { id: "selector", name: "Selector", group: "Building Blocks", description: "Triage a patient's vitals and run matching screening branches in parallel.", code: selectorCode, explainer: selectorExplainer, guideLink: `${DOCS}/guides/building-blocks/decisions/` },
+  { id: "subflow", name: "Subflow", group: "Building Blocks", description: "Nest a payment processing flowchart inside an order pipeline.", code: subflowCode, explainer: subflowExplainer, guideLink: `${DOCS}/guides/building-blocks/subflows/` },
+  { id: "loops", name: "Loops", group: "Building Blocks", description: "Retry an unstable API with exponential backoff using loopTo and $break.", code: loopsCode, explainer: loopsExplainer, guideLink: `${DOCS}/guides/patterns/loops-and-retry/` },
+  { id: "lazy-subflow", name: "Lazy Subflow", group: "Building Blocks", description: "Graph-of-services — 3 lazy branches, only selected ones resolve and execute.", code: lazySubflowCode, explainer: lazySubflowExplainer, guideLink: `${DOCS}/guides/building-blocks/subflows/`, defaultInput: JSON.stringify({ requiredServices: ["auth", "payment"] }, null, 2) },
 
   // ════════════════════════════════════════════════════════════════════════
   // RUNTIME FEATURES
