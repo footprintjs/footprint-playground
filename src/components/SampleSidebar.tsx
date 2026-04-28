@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import type { Sample } from "../samples/catalog";
 
 /** Build a tree structure from flat samples: group → subgroup → items */
@@ -260,7 +260,7 @@ export function SampleDropdown({
       }}
     >
       {tree.map((group) => {
-        const options: JSX.Element[] = [];
+        const options: ReactElement[] = [];
 
         // Direct items under group label
         if (group.directItems.length > 0) {

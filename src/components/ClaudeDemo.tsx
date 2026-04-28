@@ -519,7 +519,7 @@ export function ClaudeDemo() {
       const snapshot = executor.getSnapshot();
       const narrativeEntries = executor.getNarrativeEntries();
       const runtimeStructure = executor.getRuntimeStructure?.() ?? null;
-      const trace = executor.getNarrative();
+      const trace = executor.getNarrativeEntries().map((e) => e.text);
       const decision = String((snapshot.sharedState as Record<string, unknown>).decision ?? "");
       const agg = metricsRecorder.getMetrics();
       const toolOutput = { decision, trace };
