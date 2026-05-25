@@ -1,46 +1,21 @@
 import React from "react";
 
-export type FlowSubTab = "visual" | "description";
+/**
+ * Export sub-tabs: which machine-readable representation of the chart
+ * to render. The LEFT "Export" tab now shows ONLY these — `Visual` and
+ * `Trace` sub-tabs were dropped because the RIGHT panel already
+ * renders both via `TracedFlow`/`ExplainableShell`.
+ */
 export type DescriptionFormat = "mcp" | "openapi" | "mermaid";
 
 interface Props {
-  active: FlowSubTab;
-  onChange: (id: FlowSubTab) => void;
-  /** Single caption shown below the deepest active segmented row. */
+  /** Currently-active export format. */
+  format: DescriptionFormat;
+  /** Fires when the user picks a different format. */
+  onFormatChange: (f: DescriptionFormat) => void;
+  /** One-line caption shown below the sub-tab row. */
   caption: string;
-  /** Format (only meaningful when active === "description"). */
-  format?: DescriptionFormat;
-  onFormatChange?: (f: DescriptionFormat) => void;
 }
-
-const SUB_TABS: { id: FlowSubTab; label: string; icon: React.ReactNode }[] = [
-  {
-    id: "visual",
-    label: "Visual",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-        <path d="M10 6.5h4M6.5 10v4M17.5 10v4M10 17.5h4" />
-      </svg>
-    ),
-  },
-  {
-    id: "description",
-    label: "Description",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="8" y1="13" x2="16" y2="13" />
-        <line x1="8" y1="17" x2="16" y2="17" />
-        <line x1="8" y1="9" x2="11" y2="9" />
-      </svg>
-    ),
-  },
-];
 
 const FORMAT_TABS: { id: DescriptionFormat; label: string; icon: React.ReactNode }[] = [
   {
@@ -77,10 +52,8 @@ const FORMAT_TABS: { id: DescriptionFormat; label: string; icon: React.ReactNode
   },
 ];
 
-export function FlowchartTabs({ active, onChange, caption, format, onFormatChange }: Props) {
-  const isDescription = active === "description";
-  const formatLabel =
-    isDescription && format ? FORMAT_TABS.find((t) => t.id === format)?.label : undefined;
+export function FlowchartTabs({ format, onFormatChange, caption }: Props) {
+  const formatLabel = FORMAT_TABS.find((t) => t.id === format)?.label;
 
   return (
     <div
@@ -103,38 +76,18 @@ export function FlowchartTabs({ active, onChange, caption, format, onFormatChang
           gap: 6,
         }}
       >
-        <span>Flowchart</span>
+        <span>Export</span>
         <Chevron />
-        <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
-          {active === "visual" ? "Visual" : "Description"}
-        </span>
-        {formatLabel && (
-          <>
-            <Chevron />
-            <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{formatLabel}</span>
-          </>
-        )}
+        <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{formatLabel}</span>
       </div>
 
-      {/* Level 2: Visual | Description */}
-      <Segmented<FlowSubTab>
-        tabs={SUB_TABS}
-        active={active}
-        onChange={onChange}
+      {/* Format selector — MCP | OpenAPI | Mermaid */}
+      <Segmented<DescriptionFormat>
+        tabs={FORMAT_TABS}
+        active={format}
+        onChange={onFormatChange}
       />
 
-      {/* Level 3: MCP | OpenAPI | Mermaid — only when Description is active */}
-      {isDescription && format && onFormatChange && (
-        <div style={{ marginTop: 6 }}>
-          <Segmented<DescriptionFormat>
-            tabs={FORMAT_TABS}
-            active={format}
-            onChange={onFormatChange}
-          />
-        </div>
-      )}
-
-      {/* Single caption — deepest meaning */}
       <div
         style={{
           marginTop: 8,

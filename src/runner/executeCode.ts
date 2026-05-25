@@ -1,6 +1,12 @@
 import * as footprint from "footprintjs";
 import * as footprintTrace from "footprintjs/trace";
 import type { NarrativeEntry } from "footprint-explainable-ui";
+import {
+  createTraceStructureRecorder,
+  createTraceRuntimeOverlay,
+  type TraceGraph,
+  type RuntimeOverlay,
+} from "footprint-explainable-ui/flowchart";
 import { transform } from "sucrase";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
@@ -39,6 +45,20 @@ export interface BuildTimeInfo {
   openAPI?: unknown;
   /** Error message if toOpenAPI() failed (typically: no contract declared). */
   openAPIError?: string;
+  /**
+   * Trace graph captured live by a `StructureRecorder` during chart
+   * construction. Drives the v6.0 `<TraceFlow>` consumer pattern —
+   * lets the UI render the chart shape without re-walking
+   * `buildTimeStructure` post-build.
+   */
+  traceGraph?: TraceGraph;
+  /**
+   * Runtime overlay captured live by a `FlowRecorder` during chart
+   * execution. Pairs with `traceGraph` to drive the L7.10
+   * `<TracedFlow>` / `<ExplainableShell traceGraph runtimeOverlay>`
+   * path — full time-travel UI without spec-tree post-walks.
+   */
+  runtimeOverlay?: RuntimeOverlay;
 }
 
 export interface ExecutionResult {
@@ -66,7 +86,30 @@ export interface ExecutionResult {
   pausedStageId?: string;
 }
 
+/**
+ * Build-only mode — runs the user's code far enough to construct the
+ * chart (so `BuildTimeInfo.spec`, `mermaid`, `traceGraph` are captured)
+ * but no-ops `executor.run()` so no runtime execution happens.
+ *
+ * Use when the UI wants to display the chart shape (Visual + Trace
+ * tabs) without paying execution cost or surfacing runtime errors.
+ *
+ * `executeCode(code, input)` is the full build + run path; this is
+ * the "look at the chart without running it" sibling.
+ */
+export async function buildCode(code: string): Promise<ExecutionResult> {
+  return runInternal(code, undefined, { buildOnly: true });
+}
+
 export async function executeCode(code: string, inputJson?: string): Promise<ExecutionResult> {
+  return runInternal(code, inputJson, { buildOnly: false });
+}
+
+async function runInternal(
+  code: string,
+  inputJson: string | undefined,
+  opts: { buildOnly: boolean },
+): Promise<ExecutionResult> {
   // Clear any previously paused executor — new execution takes over
   _pausedExecutor = null;
   _pausedBuildTime = null;
@@ -77,18 +120,54 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     null;
   let capturedBuildTime: BuildTimeInfo | null = null;
 
-  // Monkey-patch FlowChartExecutor to capture the instance
+  // Monkey-patch FlowChartExecutor to capture the instance — and in
+  // build-only mode, no-op the `run()` method so user code that calls
+  // `await executor.run(...)` returns immediately without executing
+  // any stage. Build-time recorders + capturedBuildTime still populate
+  // because the chart is built BEFORE `executor.run()` is called.
   const OriginalExecutor = footprint.FlowChartExecutor;
   const ProxiedExecutor = class extends OriginalExecutor {
     constructor(...args: ConstructorParameters<typeof OriginalExecutor>) {
       super(...args);
       capturedExecutor = this;
+      // Attach the runtime overlay recorder to every executor — events
+      // flow into runtimeOverlayHandle's pub-sub bus as the chart runs.
+      // The handle is captured into `capturedBuildTime.runtimeOverlay`
+      // after the run completes.
+      this.attachFlowRecorder(runtimeOverlayHandle.recorder as any);
+    }
+    async run(...args: Parameters<InstanceType<typeof OriginalExecutor>["run"]>) {
+      if (opts.buildOnly) {
+        // Skip the actual run — return an empty snapshot-shaped result.
+        // User code that destructures the return won't blow up; type
+        // safety is informal here (same as the rest of the sandbox).
+        return undefined as unknown as Awaited<
+          ReturnType<InstanceType<typeof OriginalExecutor>["run"]>
+        >;
+      }
+      return super.run(...args);
     }
   };
+
+  // Live trace recorder — attached to every builder before .build(),
+  // captures the chart shape as it's constructed (v6.0 StructureRecorder
+  // pattern). The resulting graph lands on `BuildTimeInfo.traceGraph`.
+  const traceRecorderHandle = createTraceStructureRecorder({ id: "playground-trace" });
+  // Live runtime overlay — attached to every executor at construction
+  // time, captures runtime execution events into a runtimeStageId-
+  // keyed map. Pairs with traceGraph for the L7.10 <TracedFlow> path.
+  const runtimeOverlayHandle = createTraceRuntimeOverlay({ id: "playground-runtime" });
 
   // Monkey-patch FlowChartBuilder to capture build-time metadata
   const OriginalBuilder = footprint.FlowChartBuilder;
   const ProxiedBuilder = class extends OriginalBuilder {
+    constructor() {
+      super();
+      // Attach the trace recorder fresh per build — though we reuse the
+      // handle (single-build context here), the seed-replay path on
+      // attachStructureRecorder ensures it observes the root.
+      this.attachStructureRecorder(traceRecorderHandle.recorder);
+    }
     build() {
       // Capture mermaid before build (toMermaid uses internal tree)
       let mermaid = "";
@@ -123,6 +202,10 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
         openAPIError = e instanceof Error ? e.message : String(e);
       }
 
+      // Snapshot the trace graph at .build() time — by now every
+      // StructureRecorder event has fired and the graph is complete.
+      const traceGraph = traceRecorderHandle.getGraph();
+
       capturedBuildTime = {
         mermaid,
         spec: chart.buildTimeStructure as unknown as Record<string, unknown>,
@@ -133,6 +216,7 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
         mcpTool,
         openAPI,
         openAPIError,
+        traceGraph,
       };
 
       return chart;
@@ -141,14 +225,40 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
 
   // Monkey-patch flowChart() — captures build-time metadata.
   // TypedScope factory is auto-embedded by FlowChartBuilder.build() — no manual setup needed.
+  // v6.0 signature: (name, fn, id, options?). Legacy 5-positional with
+  // buildTimeExtractor was removed in v6.0 — user samples that still use
+  // the old shape will fall through to a no-op (the proxied flowChart
+  // accepts but ignores extra positional args for backwards source
+  // compat at the editor level).
   const proxiedFlowChart = (
     name: string,
     fn: any,
     id: string,
-    buildTimeExtractor?: any,
-    description?: string
+    optionsOrLegacyExtractor?: any,
+    legacyDescription?: string
   ) => {
-    return new ProxiedBuilder(buildTimeExtractor).start(name, fn, id, description);
+    // Discriminate: options-bag (plain object literal) vs legacy 4th
+    // positional (a function = old buildTimeExtractor — discarded in v6.0).
+    const isOptionsBag =
+      optionsOrLegacyExtractor !== null &&
+      typeof optionsOrLegacyExtractor === "object" &&
+      !Array.isArray(optionsOrLegacyExtractor);
+    const options = isOptionsBag ? optionsOrLegacyExtractor : undefined;
+    // If the user passed a description in the legacy 5th slot, merge it
+    // into the options bag (so sample code authored against v5 still
+    // surfaces descriptions on the seed).
+    const mergedOptions =
+      legacyDescription !== undefined
+        ? { ...(options ?? {}), description: legacyDescription }
+        : options;
+    // Note: structureRecorders passed via the user's options bag would
+    // be ignored here — the ProxiedBuilder attaches its own recorder
+    // in the constructor for trace capture. For v6.0 playground demos,
+    // the trace graph is captured automatically; user-provided
+    // recorders flow through if attached via `.attachStructureRecorder()`
+    // post-construction.
+    void mergedOptions; // explicit acknowledgment; options forwarded via description above
+    return new ProxiedBuilder().start(name, fn, id, mergedOptions?.description);
   };
 
   // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
@@ -317,6 +427,17 @@ export async function executeCode(code: string, inputJson?: string): Promise<Exe
     }
 
     _pausedExecutor = null;
+    // Snapshot the runtime overlay AFTER run completes — by now every
+    // FlowRecorder event has fired and the overlay's executionOrder
+    // is complete. Merge into the buildTime info so consumers get one
+    // unified data blob for the L7.10 <TracedFlow> path.
+    if (capturedBuildTime !== null) {
+      const built: BuildTimeInfo = capturedBuildTime;
+      capturedBuildTime = {
+        ...built,
+        runtimeOverlay: runtimeOverlayHandle.getOverlay(),
+      };
+    }
     return { snapshot, logs, narrative, narrativeEntries, buildTime: capturedBuildTime, runtimeStructure };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -165,11 +165,11 @@ export function HomePage() {
         </p>
       </motion.div>
 
-      {/* 3 cards */}
+      {/* cards */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
           gap: 16,
           width: "100%",
           maxWidth: 900,
@@ -201,6 +201,24 @@ export function HomePage() {
           cta="Try with Claude"
           to="/try-with-ai"
           delay={0.35}
+        />
+        <Card
+          phase="observe"
+          icon="🔍"
+          title="L8 Trace Explorer"
+          desc="Time-travel debug UI: chain view + commit/node inspectors + slider. Click around a fork+loop chart."
+          cta="Open explorer"
+          to="/trace-explorer"
+          delay={0.45}
+        />
+        <Card
+          phase="observe"
+          icon="🧭"
+          title="Observe v2 (ONE-CURSOR)"
+          desc="Existing ExplainableShell + L8 panes side-by-side. Click any commit / row / node → all panes sync."
+          cta="Open observe v2"
+          to="/observe-v2"
+          delay={0.55}
         />
       </div>
 

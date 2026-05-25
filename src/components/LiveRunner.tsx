@@ -1,11 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import Editor from "@monaco-editor/react";
-import {
-  ReactFlow,
-  Background,
-  type NodeTypes,
-} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ExplainableShell } from "footprint-explainable-ui";
 import { SampleExplainer } from "./SampleExplainer";
@@ -16,17 +11,10 @@ import { samples } from "../samples/catalog";
 import { SampleSidebar, SampleDropdown } from "./SampleSidebar";
 import {
   executeCode,
+  buildCode,
   resumeExecution,
   type ExecutionResult,
 } from "../runner/executeCode";
-import {
-  StageNode,
-  SubflowBreadcrumb,
-  useSubflowNavigation,
-  type SpecNode,
-} from "footprint-explainable-ui/flowchart";
-
-const nodeTypes: NodeTypes = { stage: StageNode as any };
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(
@@ -41,20 +29,13 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-type LeftTab = "explain" | "code" | "flow";
-type FlowSubTab = "visual" | "description";
+type LeftTab = "explain" | "code" | "export";
 
 /** Capability sentences — what each primary tab teaches the user (and any LLM reading the page).
- *  Shown only when the tab has no deeper active selection (Flowchart delegates to sub-tabs). */
+ *  Shown only when the tab has no deeper active selection (Export delegates to its format selector). */
 const LEFT_TAB_CAPTION: Partial<Record<LeftTab, string>> = {
   explain: "Teach what this pattern is.",
   code: "Author the flowchart.",
-};
-
-/** Capability sentences for sub-tabs inside Flowchart. Format caption overrides this when Description is active. */
-const FLOW_SUB_CAPTION: Record<FlowSubTab, string> = {
-  visual: "See the diagram.",
-  description: "Expose this flow to other systems.",
 };
 
 type MobilePanel = "code" | "output";
@@ -77,7 +58,6 @@ export function LiveRunner() {
   const [running, setRunning] = useState(false);
   const [resumedFrom, setResumedFrom] = useState<{ question?: string; input?: unknown } | null>(null);
   const [leftTab, setLeftTab] = useState<LeftTab>("code");
-  const [flowSubTab, setFlowSubTab] = useState<FlowSubTab>("visual");
   const [descriptionFormat, setDescriptionFormat] = useState<DescriptionFormat>("mcp");
   // Right panel tabs managed by ExplainableShell internally
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -97,7 +77,25 @@ export function LiveRunner() {
     setInputOpen(!!(navInputJson ?? resolvedSample.defaultInput));
     setResult(null);
     setLeftTab(resolvedSample.explainer ? "explain" : "code");
-    setFlowSubTab("visual");
+    setDescriptionFormat("mcp");
+
+    // Auto-BUILD the sample (NOT auto-run) so the Export tab's chart-
+    // export formats populate immediately. Build is pure — no
+    // execution, no inputs, no side effects. The user clicks Run
+    // explicitly to execute and see runtime data.
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await buildCode(resolvedSample.code);
+        if (!cancelled) setResult(res);
+      } catch {
+        // Silent — auto-build failures shouldn't surface as errors;
+        // the user can see the real failure by clicking Run.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   // navInputJson intentionally excluded — only re-sync on sample change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedSample.id]);
@@ -114,7 +112,7 @@ export function LiveRunner() {
     try {
       const res = await executeCode(code, inputJson || undefined);
       setResult(res);
-  
+
     } catch (e: unknown) {
       setResult({
         snapshot: null,
@@ -127,6 +125,30 @@ export function LiveRunner() {
       setRunning(false);
     }
   }, [code, inputJson, isMobile]);
+
+  // Build-only: capture chart shape without executing. Populates the
+  // Visual + Trace tabs without paying execution cost or requiring
+  // input. Distinct from Run — keeps the user's mental model clean
+  // (Build = "what does this flow look like?", Run = "what happens
+  // when I execute it?").
+  const handleBuild = useCallback(async () => {
+    setRunning(true);
+    setResumedFrom(null);
+    try {
+      const res = await buildCode(code);
+      setResult(res);
+    } catch (e: unknown) {
+      setResult({
+        snapshot: null,
+        logs: [],
+        narrative: [],
+        buildTime: null,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [code]);
 
   const handleResume = useCallback(async (resumeInput?: unknown) => {
     setRunning(true);
@@ -151,14 +173,17 @@ export function LiveRunner() {
     }
   }, [result]);
 
-  // Prefer runtime structure (has resolved lazy subflows for drill-down) over build-time spec
-  const buildTimeSpec = (result?.runtimeStructure as unknown as SpecNode)
-    ?? (result?.buildTime?.spec as unknown as SpecNode)
-    ?? null;
-  const buildSubflow = useSubflowNavigation(buildTimeSpec);
-  const buildTimeFlowData = buildTimeSpec
-    ? { nodes: buildSubflow.nodes, edges: buildSubflow.edges }
-    : null;
+  // Recorder-driven (v6+): the build-time trace graph (captured live
+  // via StructureRecorder) is the single source of truth for chart
+  // The build-time trace graph (captured live via StructureRecorder)
+  // flows into the RIGHT panel via ExplainableShell. The LEFT panel
+  // no longer renders a chart — `Visual`/`Trace` sub-tabs were
+  // dropped; the LEFT panel now shows only machine-readable exports
+  // (MCP/OpenAPI/Mermaid) via the Export tab.
+  const buildTimeSpec =
+    (result?.runtimeStructure as unknown as Record<string, unknown>) ??
+    (result?.buildTime?.spec as Record<string, unknown> | undefined) ??
+    null;
 
   // (Subflow state, overlay, time-travel all managed inside ExplainableSection/AICompatibleSection
   // via useFlowchartData hook — LiveRunner just passes spec + vizSnapshots)
@@ -272,9 +297,9 @@ export function LiveRunner() {
                 },
                 { id: "code", label: "Code" },
                 {
-                  id: "flow",
-                  label: "Flowchart",
-                  disabled: !buildTimeFlowData && !result?.buildTime,
+                  id: "export",
+                  label: "Export",
+                  disabled: !result?.buildTime,
                 },
               ]}
               active={leftTab}
@@ -282,23 +307,41 @@ export function LiveRunner() {
               caption={LEFT_TAB_CAPTION[leftTab]}  /* undefined on Flowchart → no caption row */
               trailing={
                 isMobile ? (
-                  <button
-                    onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
-                    disabled={running}
-                    style={{
-                      background: "var(--accent)",
-                      border: "none",
-                      color: "white",
-                      borderRadius: 6,
-                      padding: "6px 14px",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      marginRight: 8,
-                    }}
-                  >
-                    {running ? "..." : "Run"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6, marginRight: 8 }}>
+                    <button
+                      onClick={handleBuild}
+                      disabled={running}
+                      title="Build the chart (no execution)"
+                      style={{
+                        background: "var(--surface-alt, transparent)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-secondary)",
+                        borderRadius: 6,
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {running ? "..." : "Build"}
+                    </button>
+                    <button
+                      onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
+                      disabled={running}
+                      style={{
+                        background: "var(--accent)",
+                        border: "none",
+                        color: "white",
+                        borderRadius: 6,
+                        padding: "6px 14px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {running ? "..." : "Run"}
+                    </button>
+                  </div>
                 ) : (
                 <button
                   onClick={() => setLeftCollapsed(true)}
@@ -426,64 +469,22 @@ export function LiveRunner() {
               {leftTab === "explain" && resolvedSample.explainer && (
                 <SampleExplainer markdown={resolvedSample.explainer} />
               )}
-              {leftTab === "flow" && (
+              {leftTab === "export" && (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                   <FlowchartTabs
-                    active={flowSubTab}
-                    onChange={setFlowSubTab}
-                    caption={
-                      flowSubTab === "description"
-                        ? FORMAT_CAPTION[descriptionFormat]
-                        : FLOW_SUB_CAPTION[flowSubTab]
-                    }
                     format={descriptionFormat}
                     onFormatChange={setDescriptionFormat}
+                    caption={FORMAT_CAPTION[descriptionFormat]}
                   />
 
-                  <FadeIn deps={`${flowSubTab}:${descriptionFormat}`}>
-                    {flowSubTab === "visual" && (
-                      buildTimeFlowData ? (
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                          <SubflowBreadcrumb
-                            breadcrumbs={buildSubflow.breadcrumbs}
-                            onNavigate={buildSubflow.navigateTo}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <ReactFlow
-                              nodes={buildTimeFlowData.nodes}
-                              edges={buildTimeFlowData.edges}
-                              nodeTypes={nodeTypes}
-                              fitView
-                              proOptions={{ hideAttribution: true }}
-                              nodesDraggable={false}
-                              nodesConnectable={false}
-                              elementsSelectable
-                              panOnDrag
-                              zoomOnScroll
-                              onNodeClick={(_e, node) => buildSubflow.handleNodeClick(node.id)}
-                            >
-                              <Background
-                                color={theme === "dark" ? "#2e2938" : "#e4d5c3"}
-                                gap={20}
-                                size={1}
-                              />
-                            </ReactFlow>
-                          </div>
-                        </div>
-                      ) : (
-                        <EmptyRunHint label="Run the code to see the flowchart." />
-                      )
-                    )}
-
-                    {flowSubTab === "description" && (
-                      result?.buildTime ? (
-                        <FlowDescription
-                          buildTime={result.buildTime}
-                          format={descriptionFormat}
-                        />
-                      ) : (
-                        <EmptyRunHint label="Run the code to see the flow description." />
-                      )
+                  <FadeIn deps={descriptionFormat}>
+                    {result?.buildTime ? (
+                      <FlowDescription
+                        buildTime={result.buildTime}
+                        format={descriptionFormat}
+                      />
+                    ) : (
+                      <EmptyRunHint label="Run the code to see the flow description." />
                     )}
                   </FadeIn>
                 </div>
@@ -512,27 +513,49 @@ export function LiveRunner() {
                 gap: 16,
               }}
             >
-              <button
-                onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  background: "var(--accent)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "14px 32px",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  boxShadow: "0 4px 16px rgba(124, 108, 240, 0.3)",
-                }}
-              >
-                <span style={{ fontSize: 20 }}>&#9654;</span>
-                {hasDefaultInput ? "Configure & Run" : "Run"}
-              </button>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={handleBuild}
+                  title="Build the chart shape (no execution)"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "var(--surface-alt, transparent)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    padding: "14px 24px",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  &#9881; Build
+                </button>
+                <button
+                  onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "var(--accent)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "14px 32px",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    boxShadow: "0 4px 16px rgba(124, 108, 240, 0.3)",
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>&#9654;</span>
+                  {hasDefaultInput ? "Configure & Run" : "Run"}
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                 {hasDefaultInput
                   ? "Edit input values and run the pipeline"
@@ -634,10 +657,92 @@ export function LiveRunner() {
                 </div>
               )}
 
+              {/* Persistent Build/Run toolbar — visible whenever a result
+                  is shown so the user can re-build (chart only) or run
+                  (full execution) without losing the current view. */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 14px",
+                  borderBottom: "1px solid var(--border)",
+                  flexShrink: 0,
+                  background: "var(--surface-alt, transparent)",
+                }}
+              >
+                <button
+                  onClick={handleBuild}
+                  disabled={running}
+                  title="Build the chart shape only (no execution)"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
+                    borderRadius: 6,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: running ? "not-allowed" : "pointer",
+                    opacity: running ? 0.6 : 1,
+                  }}
+                >
+                  &#9881; Build
+                </button>
+                <button
+                  onClick={hasDefaultInput ? () => setShowInputModal(true) : handleRun}
+                  disabled={running}
+                  title="Execute the chart and capture runtime overlay"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "var(--accent)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "5px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: running ? "not-allowed" : "pointer",
+                    opacity: running ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>&#9654;</span>
+                  {running ? "Running..." : hasDefaultInput ? "Configure & Run" : "Run"}
+                </button>
+                {result.snapshot && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4 }}>
+                    Runtime captured — scrub the timeline to time-travel
+                  </span>
+                )}
+                {!result.snapshot && !running && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4 }}>
+                    Build-only view — click Run to capture runtime overlay
+                  </span>
+                )}
+              </div>
+
               <div style={{ flex: 1, overflow: "hidden" }}>
+                {/* Key on resolvedSample.id forces ExplainableShell to
+                    remount when the user picks a different sample
+                    from the sidebar — drops the prior drill stack,
+                    scrub position, tab selection, panel-collapse
+                    state. Without this, switching from a drilled-in
+                    subflow sample into another sample carries the
+                    stale drill state forward. */}
                 <ExplainableShell
+                  key={resolvedSample.id}
                   runtimeSnapshot={result.snapshot as any}
                   spec={buildTimeSpec as any}
+                  // L7.10 opt-in: when traceGraph is present on the
+                  // build-time info (captured live via
+                  // StructureRecorder + FlowRecorder), ExplainableShell
+                  // routes the flowchart render through <TracedFlow>
+                  // (the new event-driven path). When absent it falls
+                  // back to a spec-based view (legacy — removed in v6+).
+                  traceGraph={result.buildTime?.traceGraph ?? null}
+                  runtimeOverlay={result.buildTime?.runtimeOverlay ?? null}
                   title={resolvedSample?.name ?? "Pipeline"}
                   logs={result.logs}
                   narrativeEntries={result.narrativeEntries}

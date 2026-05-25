@@ -5,6 +5,8 @@ import { TryWithAI } from "./components/TryWithAI";
 import { ClaudeDemo } from "./components/ClaudeDemo";
 import { loanApplication } from "./tutorials/loan-application";
 import { LiveRunner } from "./components/LiveRunner";
+import { TraceExplorerDemo } from "./components/TraceExplorerDemo";
+import { ObserveV2Page } from "./components/ObserveV2Page";
 import { samples } from "./samples/catalog";
 
 const defaultSampleId = samples[0].id;
@@ -17,6 +19,8 @@ function App() {
         <Route path="/tour" element={<TutorialShell tutorial={loanApplication} />} />
         <Route path="/try-with-ai" element={<TryWithAI />} />
         <Route path="/claude-demo" element={<ClaudeDemo />} />
+        <Route path="/trace-explorer" element={<TraceExplorerDemo />} />
+        <Route path="/observe-v2" element={<ObserveV2Page />} />
         <Route path="/samples" element={<Navigate to={`/samples/${defaultSampleId}`} replace />} />
         <Route path="/samples/:sampleId" element={<LiveRunner />} />
         <Route path="*" element={<Navigate to="/" replace />} />

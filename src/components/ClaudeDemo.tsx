@@ -53,8 +53,7 @@ function buildChart() {
       scope.riskFactors = [];
     },
     "assess-credit",
-    undefined,
-    "Compute DTI and assess credit profile",
+    { description: "Compute DTI and assess credit profile" },
   )
     .addDeciderFunction(
       "CreditDecision",
@@ -513,7 +512,7 @@ export function ClaudeDemo() {
       const metricsRecorder = new MetricRecorder();
       const executor = new FlowChartExecutor(chart);
       executor.enableNarrative();
-      executor.attachRecorder(metricsRecorder);
+      executor.attachScopeRecorder(metricsRecorder);
       await executor.run({ input: toolUse.input as Record<string, unknown> });
 
       const snapshot = executor.getSnapshot();
