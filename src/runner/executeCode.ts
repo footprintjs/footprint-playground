@@ -1,5 +1,8 @@
 import * as footprint from "footprintjs";
-import * as footprintTrace from "footprintjs/trace";
+import * as engineTrace from "footprintjs/trace";
+import * as foottrace from "foottrace";
+import * as foottraceWrite from "foottrace/write";
+import * as foottracePaths from "foottrace/paths";
 import type { NarrativeEntry } from "footprint-explainable-ui";
 import {
   createTraceStructureRecorder,
@@ -265,7 +268,7 @@ async function runInternal(
 
   // Strip import statements (footprint, zod, @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
-    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/(?:advanced|trace))?|zod)['"];?\s*\n?/g,
+    /import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"](?:footprint(?:js)?(?:\/(?:advanced|trace))?|foottrace(?:\/(?:write|paths))?|zod)['"];?\s*\n?/g,
     ""
   );
   // Strip default import from @anthropic-ai/sdk (e.g. `import Anthropic from '@anthropic-ai/sdk';`)
@@ -319,7 +322,12 @@ async function runInternal(
   // Build execution context — all footprint exports + zod + our proxied classes
   const context: Record<string, unknown> = {
     ...footprint,
-    ...footprintTrace,
+    // Engine recorders stay with the engine; migrated record names below
+    // come from their canonical Foottrace owner on both 9.x and 10.x.
+    ...engineTrace,
+    ...foottrace,
+    ...foottraceWrite,
+    ...foottracePaths,
     z,
     INPUT: parsedInput,
     FlowChartExecutor: ProxiedExecutor,

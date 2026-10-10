@@ -180,14 +180,6 @@ export function LiveRunner() {
   // no longer renders a chart — `Visual`/`Trace` sub-tabs were
   // dropped; the LEFT panel now shows only machine-readable exports
   // (MCP/OpenAPI/Mermaid) via the Export tab.
-  const buildTimeSpec =
-    (result?.runtimeStructure as unknown as Record<string, unknown>) ??
-    (result?.buildTime?.spec as Record<string, unknown> | undefined) ??
-    null;
-
-  // (Subflow state, overlay, time-travel all managed inside ExplainableSection/AICompatibleSection
-  // via useFlowchartData hook — LiveRunner just passes spec + vizSnapshots)
-
   return (
     <div
       style={{
@@ -734,13 +726,11 @@ export function LiveRunner() {
                 <ExplainableShell
                   key={resolvedSample.id}
                   runtimeSnapshot={result.snapshot as any}
-                  spec={buildTimeSpec as any}
                   // L7.10 opt-in: when traceGraph is present on the
                   // build-time info (captured live via
                   // StructureRecorder + FlowRecorder), ExplainableShell
                   // routes the flowchart render through <TracedFlow>
-                  // (the new event-driven path). When absent it falls
-                  // back to a spec-based view (legacy — removed in v6+).
+                  // (the event-driven path, without a legacy spec walk).
                   traceGraph={result.buildTime?.traceGraph ?? null}
                   runtimeOverlay={result.buildTime?.runtimeOverlay ?? null}
                   title={resolvedSample?.name ?? "Pipeline"}

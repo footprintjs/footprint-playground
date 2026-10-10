@@ -1,16 +1,15 @@
 name: Deploy to GitHub Pages
 
 on:
+  pull_request:
   push:
     branches: [main]
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -25,36 +24,52 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: footprintjs/footPrint
+          ref: v9.48.3
           path: footPrint
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # Replace file: links with npm versions for CI
-      - name: Swap local deps for npm packages
+      - name: Match the verified strict dependency resolver
+        run: npm install --global npm@11.19.0
+
+      # Keep authored links in Git; only this disposable checkout uses the
+      # reviewed public package pins. Retain the existing lock's other entries.
+      - name: Prepare reviewed published dependencies
         working-directory: footprint-playground
         run: |
-          sed -i 's|"footprintjs": "file:../footPrint"|"footprintjs": "^4.12.0"|' package.json
-          sed -i 's|"footprint-explainable-ui": "file:../explainable-ui"|"footprint-explainable-ui": "^0.16.0"|' package.json
-          rm -f package-lock.json
+          node scripts/prepare-ci-dependencies.mjs
+          # Refresh only named replacements; npm install can retain a stale
+          # same-version local link instead of recording the public package.
+          npm update --package-lock-only footprintjs footprint-explainable-ui
 
-      - run: npm install
+      - run: npm ci
         working-directory: footprint-playground
 
-      # Skip tsc type-checking in CI (executeCode.ts monkey-patches internal classes)
-      # Vite handles transpilation via sucrase
-      - run: npx vite build
+      - run: npm ls footprintjs foottrace --all
+        working-directory: footprint-playground
+
+      - run: npm test
+        working-directory: footprint-playground
+
+      - run: npm run build
         working-directory: footprint-playground
 
       - run: cp dist/index.html dist/404.html
         working-directory: footprint-playground
 
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push'
         with:
           path: footprint-playground/dist
 
   deploy:
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     needs: build
     runs-on: ubuntu-latest
     environment:

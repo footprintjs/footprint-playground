@@ -2,26 +2,19 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Anthropic from "@anthropic-ai/sdk";
-import { z } from "zod";
-import { flowChart, FlowChartExecutor, decide, MetricRecorder } from "footprintjs";
+import { FlowChartExecutor, MetricRecorder } from "footprintjs";
 import { ExplainableShell } from "footprint-explainable-ui";
 import type { NarrativeEntry } from "footprint-explainable-ui";
+import type { TraceGraph } from "footprint-explainable-ui/flowchart";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { buildCreditChart, type ApplicantData } from "../runner/creditChart";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface ApplicantData {
-  applicantName: string;
-  creditScore: number;
-  monthlyIncome: number;
-  monthlyDebts: number;
-}
-
 interface ExecState {
   snapshot: unknown;
-  spec: unknown;
+  traceGraph: TraceGraph;
   narrativeEntries: unknown;
-  runtimeStructure: unknown;
   toolInput: Record<string, unknown>;
   toolOutput: { decision: string; trace: string[] };
   decision: string;
@@ -35,57 +28,6 @@ type ChatMsg =
   | { id: string; kind: "fp_done"; decision: string; totalMs: number }
   | { id: string; kind: "assistant"; text: string }
   | { id: string; kind: "error"; text: string };
-
-// ── Flowchart ──────────────────────────────────────────────────────────────
-
-interface CreditState {
-  dti: number;
-  riskFactors: string[];
-  decision: string;
-}
-
-function buildChart() {
-  const builder = flowChart<CreditState>(
-    "AssessCredit",
-    async (scope) => {
-      const input = scope.$getArgs<ApplicantData>();
-      scope.dti = Math.round((input.monthlyDebts / input.monthlyIncome) * 100) / 100;
-      scope.riskFactors = [];
-    },
-    "assess-credit",
-    { description: "Compute DTI and assess credit profile" },
-  )
-    .addDeciderFunction(
-      "CreditDecision",
-      (scope) => {
-        const args = scope.$getArgs<ApplicantData>();
-        return decide(scope, [
-          { when: (s) => args.creditScore >= 700 && s.dti < 0.43, then: "approved", label: "Strong credit profile" },
-          { when: () => args.creditScore < 580, then: "rejected", label: "Credit score below minimum" },
-        ], "manual-review");
-      },
-      "credit-decision",
-      "Route based on credit score and DTI",
-    )
-    .addFunctionBranch("approved", "Approve", async (scope) => { scope.decision = "APPROVED"; }, "Issue approval")
-    .addFunctionBranch("rejected", "Reject", async (scope) => { scope.decision = "REJECTED"; }, "Issue rejection")
-    .addFunctionBranch("manual-review", "ManualReview", async (scope) => { scope.decision = "MANUAL REVIEW"; }, "Flag for underwriter")
-    .setDefault("manual-review")
-    .end()
-    .contract({
-      input: z.object({
-        applicantName: z.string(),
-        creditScore: z.number(),
-        monthlyIncome: z.number(),
-        monthlyDebts: z.number(),
-      }),
-    });
-
-  const chart = builder.build();
-  const spec = (chart as unknown as Record<string, unknown>).buildTimeStructure;
-  const mcpTool = chart.toMCPTool() as { name: string; description: string; inputSchema: Record<string, unknown> };
-  return { chart, spec, mcpTool };
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -274,7 +216,7 @@ function SlideHowBuilt({ execState }: { execState: ExecState | null }) {
   return (
     <ExplainableShell
       runtimeSnapshot={execState.snapshot as any}
-      spec={(execState.runtimeStructure ?? execState.spec) as any}
+      traceGraph={execState.traceGraph}
       title="Credit Decision"
       logs={[]}
       narrativeEntries={execState.narrativeEntries as NarrativeEntry[]}
@@ -463,7 +405,7 @@ export function ClaudeDemo() {
   // Bumped each time new execution data arrives — tells wizard to auto-advance
   const [execTick, setExecTick] = useState(0);
 
-  const { chart, spec, mcpTool } = useMemo(() => buildChart(), []);
+  const { chart, traceGraph, mcpTool } = useMemo(() => buildCreditChart(), []);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -517,14 +459,13 @@ export function ClaudeDemo() {
 
       const snapshot = executor.getSnapshot();
       const narrativeEntries = executor.getNarrativeEntries();
-      const runtimeStructure = executor.getRuntimeStructure?.() ?? null;
       const trace = executor.getNarrativeEntries().map((e) => e.text);
       const decision = String((snapshot.sharedState as Record<string, unknown>).decision ?? "");
       const agg = metricsRecorder.getMetrics();
       const toolOutput = { decision, trace };
 
       setExecState({
-        snapshot, spec, narrativeEntries, runtimeStructure,
+        snapshot, traceGraph, narrativeEntries,
         toolInput: toolUse.input as Record<string, unknown>,
         toolOutput, decision, totalMs: Math.round(agg.totalDuration),
       });
