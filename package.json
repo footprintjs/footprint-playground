@@ -3,11 +3,13 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
@@ -16,6 +18,7 @@
     "dompurify": "^3.4.0",
     "footprint-explainable-ui": "file:../explainable-ui",
     "footprintjs": "file:../footPrint",
+    "foottrace": "^1.0.0",
     "framer-motion": "^12.35.1",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.0",
@@ -40,6 +43,7 @@
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.5"
   }
 }
