@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: footprintjs/footPrint
-          ref: v9.48.3
+          ref: v10.0.0
           path: footPrint
 
       - uses: actions/setup-node@v4
