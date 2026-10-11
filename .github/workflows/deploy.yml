@@ -53,6 +53,9 @@ jobs:
       - run: npm test
         working-directory: footprint-playground
 
+      - run: npm run lint
+        working-directory: footprint-playground
+
       - run: npm run build
         working-directory: footprint-playground
 

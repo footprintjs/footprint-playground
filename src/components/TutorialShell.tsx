@@ -80,12 +80,14 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
   const [observeSnapshotIdx, setObserveSnapshotIdx] = useState(0);
 
   // Description overlay for build phase
-  const [showDescription, setShowDescription] = useState(false);
+  const [showDescription, setShowDescription] = useState(() => {
+    const first = tutorial.steps[0];
+    return !!extractDescriptions(first.code, first.newCodeRange);
+  });
 
   // Transition state
   const [transitioning, setTransitioning] = useState(false);
   const [oldLeft, setOldLeft] = useState<React.ReactNode>(null);
-  const prevPhaseRef = useRef<TutorialPhase>("build");
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const step = tutorial.steps[stepIndex];
@@ -98,23 +100,11 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
     return { firstStepOfPhase: firstIdx, phaseStepCount: count, phaseStepIndex: stepIndex - firstIdx };
   }, [tutorial.steps, step.phase, stepIndex]);
 
-  // Reset observe snapshot index when entering observe phase
-  useEffect(() => {
-    if (step.phase === "observe" && prevPhaseRef.current !== "observe") {
-      setObserveSnapshotIdx(0);
-    }
-  }, [step.phase]);
-
   // Extract description organically from the code's new lines
   const codeDescription = useMemo(
     () => extractDescriptions(step.code, step.newCodeRange),
     [step.code, step.newCodeRange]
   );
-
-  // Show description overlay when new code contains a .description() call
-  useEffect(() => {
-    setShowDescription(!!codeDescription);
-  }, [stepIndex, codeDescription]);
 
   const togglePlay = useCallback(() => {
     setIsPlaying((p) => !p);
@@ -180,46 +170,48 @@ export function TutorialShell({ tutorial }: TutorialShellProps) {
         }
       }
     },
-    [tutorial.steps, isPlaying, togglePlay]
+    [tutorial, isPlaying, togglePlay]
   );
 
-  // Phase transition animation
-  useEffect(() => {
-    if (step.phase !== prevPhaseRef.current) {
-      const prevStepIndex = Math.max(0, stepIndex - 1);
-      const prevStep = tutorial.steps[prevStepIndex];
-      const prevPanels = getPanels(prevStep, observeSnapshotIdx);
-      setOldLeft(prevPanels.left);
+  // Navigation owns the related state change atomically; effects only manage external timers.
+  const goToStep = useCallback((nextIndex: number) => {
+    if (nextIndex === stepIndex) return;
+    const nextStep = tutorial.steps[nextIndex];
+    if (!nextStep) return;
+    if (nextStep.phase !== step.phase) {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+      setOldLeft(getPanels(step, observeSnapshotIdx).left);
       setTransitioning(true);
-
       transitionTimerRef.current = setTimeout(() => {
         setTransitioning(false);
         setOldLeft(null);
       }, TRANSITION_MS);
-
-      prevPhaseRef.current = step.phase;
+      if (nextStep.phase === "observe") setObserveSnapshotIdx(0);
     }
-    return () => {
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    };
-  }, [step.phase, stepIndex, tutorial.steps, getPanels, observeSnapshotIdx]);
+    setShowDescription(!!extractDescriptions(nextStep.code, nextStep.newCodeRange));
+    setStepIndex(nextIndex);
+  }, [stepIndex, tutorial.steps, step, getPanels, observeSnapshotIdx]);
+
+  useEffect(() => () => {
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+  }, []);
 
   const goNext = useCallback(() => {
-    setStepIndex((i) => Math.min(i + 1, totalSteps - 1));
-  }, [totalSteps]);
+    goToStep(Math.min(stepIndex + 1, totalSteps - 1));
+  }, [goToStep, stepIndex, totalSteps]);
 
   const goPrev = useCallback(() => {
-    setStepIndex((i) => Math.max(i - 1, 0));
+    goToStep(Math.max(stepIndex - 1, 0));
     setIsPlaying(false);
-  }, []);
+  }, [goToStep, stepIndex]);
 
   const goToPhase = useCallback((phase: TutorialPhase) => {
     const idx = tutorial.steps.findIndex((s) => s.phase === phase);
     if (idx >= 0) {
-      setStepIndex(idx);
+      goToStep(idx);
       setIsPlaying(false);
     }
-  }, [tutorial.steps]);
+  }, [tutorial.steps, goToStep]);
 
   // Auto-play during execute phase
   useEffect(() => {

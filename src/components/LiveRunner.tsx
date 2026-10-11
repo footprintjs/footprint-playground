@@ -4,9 +4,10 @@ import Editor from "@monaco-editor/react";
 import "@xyflow/react/dist/style.css";
 import { ExplainableShell } from "footprint-explainable-ui";
 import { SampleExplainer } from "./SampleExplainer";
-import { FlowDescription, FORMAT_CAPTION } from "./FlowDescription";
+import { FlowDescription } from "./FlowDescription";
+import { FORMAT_CAPTION } from "./descriptionFormats";
 import { FlowchartTabs, FadeIn, type DescriptionFormat } from "./FlowchartTabs";
-import { useTheme } from "../ThemeContext";
+import { useTheme } from "../theme";
 import { samples } from "../samples/catalog";
 import { SampleSidebar, SampleDropdown } from "./SampleSidebar";
 import {
@@ -725,7 +726,7 @@ export function LiveRunner() {
                     stale drill state forward. */}
                 <ExplainableShell
                   key={resolvedSample.id}
-                  runtimeSnapshot={result.snapshot as any}
+                  runtimeSnapshot={result.snapshot}
                   // L7.10 opt-in: when traceGraph is present on the
                   // build-time info (captured live via
                   // StructureRecorder + FlowRecorder), ExplainableShell
