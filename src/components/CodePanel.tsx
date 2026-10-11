@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { motion } from "framer-motion";
-import { useTheme } from "../ThemeContext";
+import { useTheme } from "../theme";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 interface CodePanelProps {

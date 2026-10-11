@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Anthropic from "@anthropic-ai/sdk";
 import { FlowChartExecutor, MetricRecorder } from "footprintjs";
 import { ExplainableShell } from "footprint-explainable-ui";
-import type { NarrativeEntry } from "footprint-explainable-ui";
+import type { NarrativeEntry, RuntimeSnapshotInput } from "footprint-explainable-ui";
 import type { TraceGraph } from "footprint-explainable-ui/flowchart";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { buildCreditChart, type ApplicantData } from "../runner/creditChart";
@@ -12,9 +12,9 @@ import { buildCreditChart, type ApplicantData } from "../runner/creditChart";
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface ExecState {
-  snapshot: unknown;
+  snapshot: RuntimeSnapshotInput;
   traceGraph: TraceGraph;
-  narrativeEntries: unknown;
+  narrativeEntries: NarrativeEntry[];
   toolInput: Record<string, unknown>;
   toolOutput: { decision: string; trace: string[] };
   decision: string;
@@ -215,11 +215,11 @@ function SlideHowBuilt({ execState }: { execState: ExecState | null }) {
 
   return (
     <ExplainableShell
-      runtimeSnapshot={execState.snapshot as any}
+      runtimeSnapshot={execState.snapshot}
       traceGraph={execState.traceGraph}
       title="Credit Decision"
       logs={[]}
-      narrativeEntries={execState.narrativeEntries as NarrativeEntry[]}
+      narrativeEntries={execState.narrativeEntries}
       defaultTab="narrative"
       defaultExpanded={{ details: true }}
     />
@@ -243,25 +243,15 @@ const slideVariants = {
 interface WizardPanelProps {
   mcpTool: { name: string; description: string; inputSchema: Record<string, unknown> };
   execState: ExecState | null;
-  hasNewData: boolean;
+  slide: number;
+  dir: number;
+  onNavigate: (slide: number) => void;
 }
 
-function WizardPanel({ mcpTool, execState, hasNewData }: WizardPanelProps) {
-  const [slide, setSlide] = useState(0);
-  const [dir, setDir] = useState(1);
-
-  // When execution completes and user is on slide 0, nudge to slide 1
-  useEffect(() => {
-    if (hasNewData && slide === 0) {
-      setDir(1);
-      setSlide(1);
-    }
-  }, [hasNewData]); // eslint-disable-line react-hooks/exhaustive-deps
-
+function WizardPanel({ mcpTool, execState, slide, dir, onNavigate }: WizardPanelProps) {
   function goTo(n: number) {
     if (n < 0 || n >= SLIDES.length) return;
-    setDir(n > slide ? 1 : -1);
-    setSlide(n);
+    onNavigate(n);
   }
 
   const isLast = slide === SLIDES.length - 1;
@@ -404,6 +394,7 @@ export function ClaudeDemo() {
   const [execState, setExecState] = useState<ExecState | null>(null);
   // Bumped each time new execution data arrives — tells wizard to auto-advance
   const [execTick, setExecTick] = useState(0);
+  const [wizard, setWizard] = useState({ slide: 0, dir: 1 });
 
   const { chart, traceGraph, mcpTool } = useMemo(() => buildCreditChart(), []);
   const chatBottomRef = useRef<HTMLDivElement>(null);
@@ -469,7 +460,9 @@ export function ClaudeDemo() {
         toolInput: toolUse.input as Record<string, unknown>,
         toolOutput, decision, totalMs: Math.round(agg.totalDuration),
       });
-      setExecTick(t => t + 1); // signal wizard to advance
+      // Completion owns the first-result nudge; navigation remains user-owned.
+      if (execTick === 0) setWizard(current => current.slide === 0 ? { slide: 1, dir: 1 } : current);
+      setExecTick(t => t + 1);
 
       setMessages(prev => prev.map(m =>
         m.id === thinkingId
@@ -592,7 +585,9 @@ export function ClaudeDemo() {
             <WizardPanel
               mcpTool={mcpTool}
               execState={execState}
-              hasNewData={execTick > 0}
+              slide={wizard.slide}
+              dir={wizard.dir}
+              onNavigate={slide => setWizard(current => ({ slide, dir: slide > current.slide ? 1 : -1 }))}
             />
           </div>
         )}

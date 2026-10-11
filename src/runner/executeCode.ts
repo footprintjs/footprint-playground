@@ -13,6 +13,7 @@ import {
 import { transform } from "sucrase";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
+import { flowRecorder } from "./flowRecorder";
 
 export interface RuntimeStageNode {
   id: string;
@@ -79,7 +80,7 @@ export interface ExecutionResult {
   /** Build-time metadata captured from the builder */
   buildTime: BuildTimeInfo | null;
   /** Runtime structure (spec + resolved dynamic subflows). Used for drill-down. */
-  runtimeStructure?: Record<string, unknown>;
+  runtimeStructure?: ReturnType<footprint.FlowChartExecutor["getRuntimeStructure"]>;
   error?: string;
   /** When true, execution paused at a PausableHandler stage. Call resumeExecution() to continue. */
   paused?: boolean;
@@ -119,8 +120,7 @@ async function runInternal(
 
   const logs: string[] = [];
   const narrative: string[] = [];
-  let capturedExecutor: InstanceType<typeof footprint.FlowChartExecutor> | null =
-    null;
+  const captured: { executor: InstanceType<typeof footprint.FlowChartExecutor> | null } = { executor: null };
   let capturedBuildTime: BuildTimeInfo | null = null;
 
   // Monkey-patch FlowChartExecutor to capture the instance — and in
@@ -132,12 +132,12 @@ async function runInternal(
   const ProxiedExecutor = class extends OriginalExecutor {
     constructor(...args: ConstructorParameters<typeof OriginalExecutor>) {
       super(...args);
-      capturedExecutor = this;
+      captured.executor = this;
       // Attach the runtime overlay recorder to every executor — events
       // flow into runtimeOverlayHandle's pub-sub bus as the chart runs.
       // The handle is captured into `capturedBuildTime.runtimeOverlay`
       // after the run completes.
-      this.attachFlowRecorder(runtimeOverlayHandle.recorder as any);
+      this.attachFlowRecorder(flowRecorder(runtimeOverlayHandle.recorder));
     }
     async run(...args: Parameters<InstanceType<typeof OriginalExecutor>["run"]>) {
       if (opts.buildOnly) {
@@ -192,7 +192,7 @@ async function runInternal(
 
       let mcpTool: unknown;
       try {
-        mcpTool = (chart as any).toMCPTool?.();
+        mcpTool = chart.toMCPTool();
       } catch {
         // chart may not expose toMCPTool in older builds
       }
@@ -200,7 +200,7 @@ async function runInternal(
       let openAPI: unknown;
       let openAPIError: string | undefined;
       try {
-        openAPI = (chart as any).toOpenAPI?.();
+        openAPI = chart.toOpenAPI();
       } catch (e) {
         openAPIError = e instanceof Error ? e.message : String(e);
       }
@@ -235,9 +235,9 @@ async function runInternal(
   // compat at the editor level).
   const proxiedFlowChart = (
     name: string,
-    fn: any,
+    fn: Parameters<InstanceType<typeof OriginalBuilder>["start"]>[1],
     id: string,
-    optionsOrLegacyExtractor?: any,
+    optionsOrLegacyExtractor?: unknown,
     legacyDescription?: string
   ) => {
     // Discriminate: options-bag (plain object literal) vs legacy 4th
@@ -246,7 +246,9 @@ async function runInternal(
       optionsOrLegacyExtractor !== null &&
       typeof optionsOrLegacyExtractor === "object" &&
       !Array.isArray(optionsOrLegacyExtractor);
-    const options = isOptionsBag ? optionsOrLegacyExtractor : undefined;
+    const options = isOptionsBag && "description" in optionsOrLegacyExtractor
+      && typeof optionsOrLegacyExtractor.description === "string"
+      ? { description: optionsOrLegacyExtractor.description } : undefined;
     // If the user passed a description in the legacy 5th slot, merge it
     // into the options bag (so sample code authored against v5 still
     // surfaces descriptions on the seed).
@@ -264,7 +266,7 @@ async function runInternal(
     return new ProxiedBuilder().start(name, fn, id, mergedOptions?.description);
   };
 
-  // Narrative is captured via executor.getNarrative() in ProxiedExecutor below.
+  // Structured narrative is captured via executor.getNarrativeEntries() below.
 
   // Strip import statements (footprint, zod, @anthropic-ai/sdk — all injected into context)
   let cleaned = code.replace(
@@ -333,7 +335,7 @@ async function runInternal(
     FlowChartExecutor: ProxiedExecutor,
     FlowChartBuilder: ProxiedBuilder,
     flowChart: proxiedFlowChart,
-    // CombinedNarrativeBuilder removed in v1.0 — narrative captured via executor.getNarrative()
+    // Narrative comes from executor.getNarrativeEntries(), not a separate builder.
     console: {
       log: (...args: unknown[]) =>
         logs.push(
@@ -360,7 +362,6 @@ async function runInternal(
 
   // This is a playground — executing user code is the core feature
   // (same pattern as GraphiQL, CodeSandbox, TS Playground)
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const fn = new Function(
     ...contextKeys,
     `return (async () => { ${cleaned} })()`
@@ -373,6 +374,7 @@ async function runInternal(
     return { snapshot: null, logs, narrative, buildTime: capturedBuildTime, error: msg };
   }
 
+  const capturedExecutor = captured.executor;
   if (!capturedExecutor) {
     return {
       snapshot: null,
@@ -384,22 +386,12 @@ async function runInternal(
   }
 
   try {
-    const snapshot = (capturedExecutor as any).getSnapshot();
-
-    // Populate narrative from executor (getNarrative() combines flow + data narratives)
-    try {
-      const lines: string[] = (capturedExecutor as any).getNarrative?.() ?? [];
-      if (lines.length > 0) {
-        narrative.push(...lines);
-      }
-    } catch {
-      // Narrative is optional — don't fail the result
-    }
+    const snapshot = capturedExecutor.getSnapshot();
 
     // Capture structured narrative entries for ExplainableShell
     let narrativeEntries: ExecutionResult['narrativeEntries'];
     try {
-      narrativeEntries = (capturedExecutor as any).getNarrativeEntries?.() ?? undefined;
+      narrativeEntries = capturedExecutor.getNarrativeEntries();
     } catch {
       // Optional — don't fail
     }
@@ -407,17 +399,16 @@ async function runInternal(
     // Capture runtime structure (has resolved lazy subflow structures for drill-down)
     let runtimeStructure: ExecutionResult['runtimeStructure'];
     try {
-      runtimeStructure = (capturedExecutor as any).getRuntimeStructure?.() ?? undefined;
+      runtimeStructure = capturedExecutor.getRuntimeStructure();
     } catch {
       // Optional
     }
 
     // Detect pause state
-    const isPaused = typeof (capturedExecutor as any).isPaused === 'function'
-      && (capturedExecutor as any).isPaused();
+    const isPaused = capturedExecutor.isPaused();
 
     if (isPaused) {
-      const checkpoint = (capturedExecutor as any).getCheckpoint();
+      const checkpoint = capturedExecutor.getCheckpoint();
       // Store executor for resumeExecution()
       _pausedExecutor = capturedExecutor;
       _pausedBuildTime = capturedBuildTime;
@@ -477,7 +468,7 @@ export async function resumeExecution(resumeInput?: unknown): Promise<ExecutionR
     return { snapshot: null, logs: [], narrative: [], buildTime: null, error: 'No paused execution to resume.' };
   }
 
-  const checkpoint = (executor as any).getCheckpoint();
+  const checkpoint = executor.getCheckpoint();
   if (!checkpoint) {
     _pausedExecutor = null;
     return { snapshot: null, logs: [], narrative: [], buildTime: null, error: 'No checkpoint available.' };
@@ -487,7 +478,7 @@ export async function resumeExecution(resumeInput?: unknown): Promise<ExecutionR
   const narrative: string[] = [];
 
   try {
-    await (executor as any).resume(checkpoint, resumeInput);
+    await executor.resume(checkpoint, resumeInput);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     _pausedExecutor = null;
@@ -497,27 +488,22 @@ export async function resumeExecution(resumeInput?: unknown): Promise<ExecutionR
   try {
     // The executor reuses its runtime — snapshot includes the full execution tree
     // (pre-pause stages + resume + continuation) in one continuous tree.
-    const snapshot = (executor as any).getSnapshot();
-
-    try {
-      const lines: string[] = (executor as any).getNarrative?.() ?? [];
-      if (lines.length > 0) narrative.push(...lines);
-    } catch { /* optional */ }
+    const snapshot = executor.getSnapshot();
 
     let narrativeEntries: ExecutionResult['narrativeEntries'];
     try {
-      narrativeEntries = (executor as any).getNarrativeEntries?.() ?? undefined;
+      narrativeEntries = executor.getNarrativeEntries();
     } catch { /* optional */ }
 
     let runtimeStructure: ExecutionResult['runtimeStructure'];
     try {
-      runtimeStructure = (executor as any).getRuntimeStructure?.() ?? undefined;
+      runtimeStructure = executor.getRuntimeStructure();
     } catch { /* optional */ }
 
     // Check if it paused again (multi-pause)
-    const isPaused = typeof (executor as any).isPaused === 'function' && (executor as any).isPaused();
+    const isPaused = executor.isPaused();
     if (isPaused) {
-      const cp = (executor as any).getCheckpoint();
+      const cp = executor.getCheckpoint();
       return {
         snapshot, logs, narrative, narrativeEntries, buildTime, runtimeStructure,
         paused: true, pauseData: cp?.pauseData, pausedStageId: cp?.pausedStageId,

@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import type { TutorialPhase } from "../tutorials/types";
-import { useTheme } from "../ThemeContext";
+import { useTheme } from "../theme";
 
 const phases: { key: TutorialPhase; label: string; icon: string }[] = [
   { key: "build", label: "Build", icon: "\u{1F6E0}" },

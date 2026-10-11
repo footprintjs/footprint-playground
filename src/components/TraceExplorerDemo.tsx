@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { flowChart, FlowChartExecutor } from "footprintjs";
+import { flowChart, FlowChartExecutor, type StructureRecorder } from "footprintjs";
 import {
   createTraceBundle,
   TraceExplorerShell,
@@ -32,7 +32,7 @@ interface DemoState {
   done: boolean;
 }
 
-function buildDemoChart(structureRecorder: any) {
+function buildDemoChart(structureRecorder: StructureRecorder) {
   return flowChart<DemoState>(
     "Seed",
     async (scope) => {
@@ -109,15 +109,13 @@ export function TraceExplorerDemo() {
 
   useEffect(() => {
     let cancelled = false;
-    setStatus("running");
-    setErrorMsg(null);
     const localBundle = createTraceBundle();
     (async () => {
       try {
         const chart = buildDemoChart(localBundle.structure.recorder);
-        const executor = new FlowChartExecutor(chart as any);
-        localBundle.attachTo(executor as any);
-        await executor.run({ input: {} } as any);
+        const executor = new FlowChartExecutor(chart);
+        localBundle.attachTo(executor);
+        await executor.run({ input: {} });
         if (!cancelled) {
           setBundle(localBundle);
           setStatus("done");
@@ -165,7 +163,11 @@ export function TraceExplorerDemo() {
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => setRunKey((k) => k + 1)}
+            onClick={() => {
+              setStatus("running");
+              setErrorMsg(null);
+              setRunKey((k) => k + 1);
+            }}
             style={btnStyle}
           >
             ↻ Re-run

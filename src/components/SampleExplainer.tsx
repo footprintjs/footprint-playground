@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
-import { useTheme } from "../ThemeContext";
+import { useTheme } from "../theme";
 
 function stripFrontMatter(md: string): string {
   if (!md.startsWith("---")) return md;
@@ -23,7 +23,6 @@ export function SampleExplainer({ markdown }: Props) {
 
   const tableBorder = isDark ? "#2a2a36" : "#e5e7eb";
   const codeBg = isDark ? "#1e1e2e" : "#f4f4f6";
-  const inlineCodeBg = isDark ? "#2a2a36" : "#eef0f3";
   const blockquoteBg = isDark ? "#1a1b24" : "#f8f9fb";
 
   return (
@@ -127,30 +126,6 @@ export function SampleExplainer({ markdown }: Props) {
               {children}
             </blockquote>
           ),
-          code: ({ inline, className, children, ...rest }: any) => {
-            if (inline) {
-              return (
-                <code
-                  {...rest}
-                  style={{
-                    background: inlineCodeBg,
-                    padding: "1px 5px",
-                    borderRadius: 3,
-                    fontSize: "0.9em",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: "var(--text)",
-                  }}
-                >
-                  {children}
-                </code>
-              );
-            }
-            return (
-              <code className={className} {...rest}>
-                {children}
-              </code>
-            );
-          },
           pre: ({ children }) => (
             <pre
               style={{

@@ -79,4 +79,22 @@ describe("Foottrace public doors in the playground", () => {
     await expect(executeCode(`import { readFile } from 'node:fs';\n${flow}\nreadFile('not-available');`))
       .rejects.toThrow("Cannot use import statement outside a module");
   });
+
+  it.each([
+    ["{ description: 'Current description', structureRecorders: [] }", "Current description"],
+    ["undefined, 'Legacy description'", "Legacy description"],
+    ["{ description: 'Bag description' }, 'Legacy wins'", "Legacy wins"],
+  ])("retains the previously honored seed description options: %s", async (options, description) => {
+    const result = await executeCode(`
+      import { flowChart, FlowChartExecutor } from 'footprintjs';
+      const chart = flowChart('Seed', scope => { scope.answer = 42; }, 'seed', ${options}).build();
+      const executor = new FlowChartExecutor(chart);
+      executor.enableNarrative();
+      await executor.run();
+    `);
+    expect(result.error).toBeUndefined();
+    expect(result.buildTime?.stageDescriptions.Seed).toBe(description);
+    expect(result.narrativeEntries?.length).toBeGreaterThan(0);
+    expect(result.runtimeStructure).toBeDefined();
+  });
 });

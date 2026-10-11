@@ -1,31 +1,27 @@
 /**
- * /observe-v2 — ONE-CURSOR observation shell.
+ * /observe-v2 — chart clicks select a shared L8 observation cursor.
  *
  * Same loan-application chart as /samples/loan-application, but the
- * page is split into two side-by-side panes that share ONE
- * `selectedRuntimeStageId` cursor:
+ * page is split into two side-by-side panes:
  *
  *   • LEFT — existing `<ExplainableShell>` (flowchart + narrative +
- *     memory + activity). Cursor sync done via index ↔ runtimeStageId
- *     adapter at the page boundary.
+ *     memory + activity). Its chart clicks select the right-pane cursor.
+ *     The shell's own detail scrubber is independent: external selection
+ *     retains the existing remount behavior, not controlled selection.
  *   • RIGHT — new L8 panes: `<RunSlider>` + `<CommitChainView>` +
  *     `<CommitInspector>` driven by `useTranslator(commitFlow, ...)`.
  *
- * Click anywhere → cursor moves → BOTH sides re-render.
+ * Chart clicks and right-pane controls select the recorded runtime-stage ID.
+ * The chart overlay still shows the completed run, not a cursor-controlled overlay.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FlowChartExecutor } from "footprintjs";
-import {
-  ExplainableShell,
-  type NarrativeEntry,
-} from "footprint-explainable-ui";
+import { ExplainableShell } from "footprint-explainable-ui";
 import {
   buildCommitChainTree,
   CommitChainView,
   CommitInspector,
-  createTraceBundle,
   RunSlider,
   TracedFlow,
   type TraceBundle,
@@ -33,48 +29,27 @@ import {
   type RuntimeStageId,
   asRuntimeStageId,
 } from "footprint-explainable-ui/flowchart";
-import { buildLoanChart, DEFAULT_LOAN_INPUT } from "../charts/loanApplicationChart";
+import { observeLoan, firstStageExecution } from "../runner/observeLoan";
 
-interface RunCapture {
-  bundle: TraceBundle;
-  snapshot: any;
-  narrativeEntries: NarrativeEntry[];
-  buildTime: { traceGraph: any; runtimeOverlay: any };
-}
+type RunCapture = Awaited<ReturnType<typeof observeLoan>>;
 
 export function ObserveV2Page() {
   const [runKey, setRunKey] = useState(0);
   const [capture, setCapture] = useState<RunCapture | null>(null);
   const [status, setStatus] = useState<"running" | "done" | "error">("running");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // THE ONE CURSOR. All panels read/write this. Click anywhere → cursor moves → all re-render.
+  // Chart clicks and L8 controls select this cursor. Chart overlay and Shell details are independent.
   const [cursor, setCursor] = useState<RuntimeStageId | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setStatus("running");
-    setErrorMsg(null);
-    setCursor(null);
-    const bundle = createTraceBundle();
     (async () => {
       try {
-        const chart = buildLoanChart(bundle.structure.recorder);
-        const executor = new FlowChartExecutor(chart as any);
-        executor.enableNarrative();
-        bundle.attachTo(executor as any);
-        await executor.run({ input: DEFAULT_LOAN_INPUT } as any);
+        const capture = await observeLoan();
         if (cancelled) return;
-        const snapshot = executor.getSnapshot();
-        const narrativeEntries = executor.getNarrativeEntries();
-        setCapture({
-          bundle,
-          snapshot,
-          narrativeEntries,
-          buildTime: {
-            traceGraph: bundle.structure.getGraph(),
-            runtimeOverlay: bundle.runtimeOverlay.getOverlay(),
-          },
-        });
+        const { stages } = capture;
+        setCursor(stages[0]?.runtimeStageId ? asRuntimeStageId(stages[0].runtimeStageId) : null);
+        setCapture(capture);
         setStatus("done");
       } catch (e) {
         if (cancelled) return;
@@ -113,14 +88,19 @@ export function ObserveV2Page() {
         </Link>
         <span style={{ color: "var(--text-muted)" }}>/</span>
         <span style={{ fontWeight: 700, fontSize: 14 }}>
-          L8 Observe (ONE-CURSOR)
+          L8 Observe
         </span>
         <StatusPill status={status} />
         <span style={{ color: "var(--text-muted)", fontSize: 12, marginLeft: 8 }}>
-          Loan application · click any commit / row / node → cursor moves → all panes re-render
+          Loan application · chart clicks select the L8 cursor; the shell scrubber is independent
         </span>
         <div style={{ flex: 1 }} />
-        <button onClick={() => setRunKey((k) => k + 1)} style={btnStyle}>
+        <button onClick={() => {
+          setStatus("running");
+          setErrorMsg(null);
+          setCursor(null);
+          setRunKey((k) => k + 1);
+        }} style={btnStyle}>
           ↻ Re-run
         </button>
       </header>
@@ -164,33 +144,15 @@ function Body({
 }) {
   const { bundle, snapshot, narrativeEntries, buildTime } = capture;
 
-  // Snapshot list — ExplainableShell renders/selects by integer index;
-  // we map runtimeStageId ↔ index at the page boundary so the ONE
-  // cursor stays canonical.
-  const stageSnapshots = useMemo(() => snapshot?.stages ?? [], [snapshot]);
+  // Use the public snapshot projection only to key the existing shell remount.
+  // This is not a controlled Shell cursor API: its detail selection stays internal.
+  const stageSnapshots = capture.stages;
   const rsidToIndex = useMemo(() => {
     const m = new Map<string, number>();
-    stageSnapshots.forEach((s: any, i: number) => {
+    stageSnapshots.forEach((s, i) => {
       if (s?.runtimeStageId) m.set(s.runtimeStageId, i);
     });
     return m;
-  }, [stageSnapshots]);
-  const indexToRsid = useCallback(
-    (i: number) => {
-      const s = stageSnapshots[i];
-      return s?.runtimeStageId ? asRuntimeStageId(s.runtimeStageId) : null;
-    },
-    [stageSnapshots],
-  );
-
-  // Initialize cursor to the first stage's runtimeStageId once we have
-  // a snapshot — so the right-pane inspectors aren't blank on load.
-  useEffect(() => {
-    if (cursor === null && stageSnapshots.length > 0) {
-      const first = indexToRsid(0);
-      if (first) onCursorChange(first);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stageSnapshots]);
 
   const selectedIndex = useMemo(() => {
@@ -207,12 +169,12 @@ function Body({
         overlay={buildTime.runtimeOverlay}
         onNodeClick={(stageId: string) => {
           // Find first runtimeStageId matching this stageId.
-          const match = stageSnapshots.find((s: any) => s.stageId === stageId);
-          if (match?.runtimeStageId) onCursorChange(asRuntimeStageId(match.runtimeStageId));
+          const match = firstStageExecution(buildTime.runtimeOverlay, stageId);
+          if (match) onCursorChange(match);
         }}
       />
     ),
-    [buildTime, stageSnapshots, onCursorChange],
+    [buildTime, onCursorChange],
   );
 
   return (
@@ -226,21 +188,20 @@ function Body({
         minHeight: 0,
       }}
     >
-      {/* LEFT — existing ExplainableShell, controlled via selectedIndex */}
+      {/* LEFT — existing shell keeps its own scrubber; retain remount-on-external-selection. */}
       <div style={{ background: "var(--bg-primary)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <PaneHeader label="Explainable Shell (existing UI)" />
         <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-          <ControlledExplainableShell
-            snapshot={snapshot}
+          <ExplainableShell
+            key={`sel-${selectedIndex}`}
+            runtimeSnapshot={snapshot}
             traceGraph={buildTime.traceGraph}
             runtimeOverlay={buildTime.runtimeOverlay}
             narrativeEntries={narrativeEntries}
-            selectedIndex={selectedIndex}
-            onSelectIndex={(i) => {
-              const rsid = indexToRsid(i);
-              onCursorChange(rsid);
-            }}
             renderFlowchart={renderFlowchartHook}
+            defaultTab="narrative"
+            defaultExpanded={{ details: true }}
+            style={{ height: "100%" }}
           />
         </div>
       </div>
@@ -273,50 +234,6 @@ function Body({
         </div>
       </div>
     </div>
-  );
-}
-
-// ── ExplainableShell wrapper that exposes selection control ─────────
-
-function ControlledExplainableShell({
-  snapshot,
-  traceGraph,
-  runtimeOverlay,
-  narrativeEntries,
-  selectedIndex,
-  onSelectIndex: _onSelectIndex,
-  renderFlowchart,
-}: {
-  snapshot: any;
-  traceGraph: any;
-  runtimeOverlay: any;
-  narrativeEntries: NarrativeEntry[];
-  selectedIndex: number;
-  onSelectIndex: (i: number) => void;
-  renderFlowchart: any;
-}) {
-  // ExplainableShell doesn't expose a controlled `selectedIndex` prop
-  // today — it owns its internal scrub state. We achieve cursor sync
-  // by remounting on selection change via a key, AND by listening for
-  // the user's clicks inside the shell (via the renderFlowchart hook
-  // for the flowchart pane). For narrative/memory row clicks the
-  // existing internal state stays; the next time the user clicks any
-  // chart node OR moves a right-pane control, this component remounts
-  // and seeds itself with the new selectedIndex.
-  return (
-    <ExplainableShell
-      key={`sel-${selectedIndex}`}
-      runtimeSnapshot={snapshot}
-      traceGraph={traceGraph}
-      runtimeOverlay={runtimeOverlay}
-      narrativeEntries={narrativeEntries}
-      defaultTab="narrative"
-      defaultExpanded={{ details: true }}
-      renderFlowchart={renderFlowchart}
-      // Force initial index by re-rendering with new key — sneaky but
-      // works without modifying ExplainableShell's API.
-      style={{ height: "100%" }}
-    />
   );
 }
 
