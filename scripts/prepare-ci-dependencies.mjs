@@ -10,7 +10,7 @@ export const replacements = {
   },
   "footprintjs": {
     "from": "file:../footPrint",
-    "to": "9.48.3"
+    "to": "10.0.0"
   }
 };
 const sections = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
