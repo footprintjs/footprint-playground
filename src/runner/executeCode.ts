@@ -15,21 +15,6 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { flowRecorder } from "./flowRecorder";
 
-export interface RuntimeStageNode {
-  id: string;
-  name?: string;
-  isDecider?: boolean;
-  isFork?: boolean;
-  stageWrites?: Record<string, unknown>;
-  logs: Record<string, unknown>;
-  errors: Record<string, unknown>;
-  metrics: Record<string, unknown>;
-  evals: Record<string, unknown>;
-  flowMessages?: unknown[];
-  next?: RuntimeStageNode;
-  children?: RuntimeStageNode[];
-}
-
 export interface BuildTimeInfo {
   /** Mermaid flowchart text from builder.toMermaid() */
   mermaid: string;
@@ -68,7 +53,8 @@ export interface BuildTimeInfo {
 export interface ExecutionResult {
   snapshot: {
     sharedState: Record<string, unknown>;
-    executionTree: RuntimeStageNode;
+    /** Either footprintjs shape (list, or linked in 12 and older); read it through executionStages.ts. */
+    executionTree: unknown;
     commitLog: unknown[];
     subflowResults?: Record<string, unknown>;
   } | null;

@@ -31,6 +31,11 @@ The record API comes from the public `foottrace`, `foottrace/write`, and
 `foottrace/paths` doors. The teaching executor exposes all three record namespaces
 while retaining engine trace exports; it is not isolation for hostile code.
 
+A run's execution tree comes in two shapes: a list of stages in run order
+(footprintjs 13) and one linked stage object with `next`/`children` (footprintjs
+12 and older, and runs they saved). `src/runner/executionStages.ts` is the one
+reader of both; every other file reads the tree through it.
+
 The current renderer receives the graph captured by a structure recorder attached
 before execution, including the credit-decision demo. It does not reconstruct a
 graph from an obsolete `ExplainableShell.spec` property.
