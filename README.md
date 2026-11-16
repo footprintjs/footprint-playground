@@ -24,6 +24,13 @@ npm run build
 npm run dev
 ```
 
+## Migration: Foottrace 2 prerelease (draft)
+
+The direct record-reader dependency now targets `foottrace ^2.0.0-rc.0`. The authored local engine and UI
+requests stay unchanged; validate them together with the selected Foottrace 2 release candidate.
+The committed lock remains the prior dependency baseline. This dependency-only draft does not yet claim
+a ready strict install or runtime compatibility for the new graph; those require the actual paired checks.
+
 ## Records and compatibility checks
 
 `footprintjs` owns execution and its engine recorders on `footprintjs/trace`.
