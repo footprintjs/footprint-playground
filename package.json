@@ -18,7 +18,7 @@
     "dompurify": "^3.4.0",
     "footprint-explainable-ui": "file:../explainable-ui",
     "footprintjs": "file:../footPrint",
-    "foottrace": "^1.0.0",
+    "foottrace": "^1.0.0 || ^2.0.0-rc.1",
     "framer-motion": "^12.35.1",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.0",
