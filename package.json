@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.54.0",
     "@monaco-editor/react": "^4.7.0",
     "@xyflow/react": "^12.10.1",
+    "dagre": "^0.8.5",
     "dompurify": "^3.4.0",
     "footprint-explainable-ui": "file:../explainable-ui",
     "footprintjs": "file:../footPrint",

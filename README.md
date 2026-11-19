@@ -35,13 +35,14 @@ The current renderer receives the graph captured by a structure recorder attache
 before execution, including the credit-decision demo. It does not reconstruct a
 graph from an obsolete `ExplainableShell.spec` property.
 
-CI retains authored local links in Git. In a disposable checkout only,
-`scripts/prepare-ci-dependencies.mjs` validates and reports replacement of the
-known runtime links with exact reviewed public releases. Unknown file links are
-refused and unrelated dependencies/peers remain unchanged. The existing lock is
-regenerated without deletion, followed by `npm ci`, tests, and the full TypeScript
-+ Vite build. This replaces the old deployment's stale package pins and skipped
-type check. Only a successful main-branch build deploys to Pages.
+Keep the local links for development against the sibling sources. CI starts
+from the same manifest and lock in a disposable checkout. The preparation script
+checks the authored links and Foottrace range before pinning the three published
+packages. It then verifies the updated lock has the exact registry packages and
+no local links. The remaining declarations, including the Playground's direct
+`dagre` dependency for the flowchart entry, apply to both modes. Strict
+`npm ci`, tests, and the TypeScript + Vite build exercise the published graph
+on every pull request. Only a successful main-branch build deploys to Pages.
 
 ## Built with
 
