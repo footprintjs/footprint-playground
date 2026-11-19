@@ -36,18 +36,19 @@ jobs:
 
       # Keep authored links in Git; only this disposable checkout uses the
       # reviewed public package pins. Retain the existing lock's other entries.
-      - name: Prepare reviewed published dependencies
+      - name: Prepare and verify reviewed published dependencies
         working-directory: footprint-playground
         run: |
           node scripts/prepare-ci-dependencies.mjs
           # Refresh only named replacements; npm install can retain a stale
           # same-version local link instead of recording the public package.
-          npm update --package-lock-only footprintjs footprint-explainable-ui
+          npm update --package-lock-only --strict-peer-deps footprintjs foottrace footprint-explainable-ui
+          node scripts/prepare-ci-dependencies.mjs --verify-lock
 
-      - run: npm ci
+      - run: npm ci --strict-peer-deps
         working-directory: footprint-playground
 
-      - run: npm ls footprintjs foottrace --all
+      - run: npm ls footprintjs foottrace footprint-explainable-ui dagre --all
         working-directory: footprint-playground
 
       - run: npm test

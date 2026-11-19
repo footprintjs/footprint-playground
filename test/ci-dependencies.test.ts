@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { prepareCiManifest, replacements } from '../scripts/prepare-ci-dependencies.mjs';
+import { prepareCiManifest, replacements, verifyCiLock } from '../scripts/prepare-ci-dependencies.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 // This test also runs in the disposable CI checkout after its pins are applied.
 for (const [name, rule] of Object.entries(replacements)) manifest.dependencies[name] = rule.from;
 
 describe('disposable CI dependency boundary', () => {
-  it('changes only the named runtime links, retaining unrelated declarations and the original', () => {
+  it('pins only the reviewed runtime dependencies, retaining other declarations and the original', () => {
     const input = { ...manifest, peerDependencies: { unrelated: '^2' }, optionalDependencies: { optional: '^3' } };
     const before = structuredClone(input);
     const result = prepareCiManifest(input);
@@ -27,7 +27,21 @@ describe('disposable CI dependency boundary', () => {
     const input = { ...manifest, dependencies: { ...manifest.dependencies, [name]: 'file:../unexpected' } };
     expect(() => prepareCiManifest(input)).toThrow('Unexpected local dependency');
     input.dependencies[name] = replacements[name].to;
-    expect(() => prepareCiManifest(input)).toThrow('Expected authored link');
+    expect(() => prepareCiManifest(input)).toThrow('Expected authored dependency');
+  });
+
+  it('rejects a stale local link or a different registry version after lock refresh', () => {
+    const packages = Object.fromEntries(Object.entries(replacements).map(([name, { to }]) => [
+      `node_modules/${name}`,
+      { version: to, resolved: `https://registry.npmjs.org/${name}/-/${name}-${to}.tgz`, integrity: 'fixture' },
+    ]));
+    expect(() => verifyCiLock({ packages })).not.toThrow();
+    expect(() => verifyCiLock({
+      packages: { ...packages, 'node_modules/example': { resolved: '../example', link: true } },
+    })).toThrow('Unexpected local lock entry');
+    expect(() => verifyCiLock({
+      packages: { ...packages, 'node_modules/foottrace': { ...packages['node_modules/foottrace'], version: '1.0.0' } },
+    })).toThrow('Expected registry lock entry');
   });
 });
 
